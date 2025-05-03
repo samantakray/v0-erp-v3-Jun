@@ -1,0 +1,113 @@
+.ss-header {
+  display: flex;
+  gap: 16px;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+
+.ss-header img {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.meta h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.alloc-table {
+  display: grid;
+  row-gap: 8px;
+  margin-bottom: 16px;
+}
+
+.alloc-head,
+.lot-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 48px;
+  column-gap: 8px;
+  align-items: center;
+}
+
+.alloc-head {
+  font-weight: 500;
+  color: #666;
+  padding: 0 6px;
+}
+
+.lot-row-container {
+  position: relative;
+}
+
+.lot-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 48px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.lot-row input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.lot-row input:focus {
+  outline: 2px solid var(--primary);
+  border-color: transparent;
+}
+
+.lot-row button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.lot-row button:hover {
+  background-color: hsl(var(--muted));
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  margin-block: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.primary {
+  display: block;
+  margin-inline: auto;
+  margin-top: 24px;
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
