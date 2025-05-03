@@ -3,6 +3,7 @@ import "@/app/globals.css"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Sidebar } from "@/components/sidebar"
+import { runValidation } from "@/lib/supabase-validator"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -17,10 +18,14 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  // This will run the validation when the app starts in development mode
+  if (process.env.NODE_ENV === "development") {
+    runValidation()
+  }
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <div className="flex min-h-screen">
             <Sidebar />
             <div className="flex-1">{children}</div>

@@ -1,161 +1,79 @@
-"use client"
-
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Edit, Trash2, Filter } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
-import { useState, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { STONE_LOTS } from "@/mocks/stones"
-import { DataTable, type Column } from "@/app/components/DataTable"
-
-// Define a type for our stone data
-type StoneLot = {
-  id: string
-  lotNumber: string
-  stoneType: string
-  color: string
-  clarity: string
-  totalQuantity: number
-  totalWeight: number
-  availableQuantity: number
-  availableWeight: number
-  pricePerCarat: number
-  supplier: string
-  receivedDate: string
-  lastUpdated?: string
-}
 
 export default function StonesPage() {
-  const [stoneData, setStoneData] = useState<StoneLot[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [typeFilter, setTypeFilter] = useState("all")
-  const [searchQuery, setSearchQuery] = useState("")
-  const itemsPerPage = 10
-
-  useEffect(() => {
-    // Simulate API fetch with mock data
-    const loadStones = () => {
-      try {
-        setLoading(true)
-        // Use the imported stone lots from mocks/stones.ts
-        const stones = STONE_LOTS.map((stone) => ({
-          ...stone,
-          lastUpdated: new Date().toISOString(), // Adding a mock last updated timestamp
-        }))
-        setStoneData(stones)
-      } catch (err) {
-        console.error("Failed to fetch Stones:", err)
-        setError("Failed to load Stones. Please try again.")
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadStones()
-  }, [])
-
-  // Filter stones based on search query and filters
-  const filteredStones = stoneData.filter((stone) => {
-    // Search query filter
-    if (
-      searchQuery &&
-      !stone.lotNumber.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !stone.supplier.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false
-    }
-
-    // Type filter
-    if (typeFilter !== "all" && stone.stoneType !== typeFilter) {
-      return false
-    }
-
-    return true
-  })
-
-  // Calculate pagination
-  const totalPages = Math.max(1, Math.ceil(filteredStones.length / itemsPerPage))
-  const paginatedStones = filteredStones.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-
-  const handleRefresh = () => {
-    setLoading(true)
-    // Simulate API fetch with mock data
-    setTimeout(() => {
-      const stones = STONE_LOTS.map((stone) => ({
-        ...stone,
-        lastUpdated: new Date().toISOString(),
-      }))
-      setStoneData(stones)
-      setLoading(false)
-    }, 500)
-  }
-
-  // Define columns for DataTable
-  const columns: Column<StoneLot>[] = [
+  const stones = [
     {
-      header: "Lot No",
-      accessor: "lotNumber",
-      render: (stone) => <span className="font-medium">{stone.lotNumber}</span>,
+      id: "RUB001",
+      name: "Ruby",
+      type: "Rubies",
+      size: "5mm",
+      color: "Deep Red",
+      clarity: "VS",
+      quantity: 25,
+      status: "Available for use",
+      image: "/placeholder.svg?height=80&width=80",
     },
     {
-      header: "Type",
-      accessor: "stoneType",
+      id: "EME002",
+      name: "Emerald",
+      type: "Emeralds",
+      size: "4mm",
+      color: "Vivid Green",
+      clarity: "VVS",
+      quantity: 18,
+      status: "Available for use",
+      image: "/placeholder.svg?height=80&width=80",
     },
     {
-      header: "Color",
-      accessor: "color",
+      id: "SAP003",
+      name: "Sapphire",
+      type: "Sapphires",
+      size: "6mm",
+      color: "Royal Blue",
+      clarity: "VS",
+      quantity: 22,
+      status: "Sent to manufacturer",
+      image: "/placeholder.svg?height=80&width=80",
     },
     {
-      header: "Total Quantity",
-      accessor: "totalQuantity",
+      id: "RUB004",
+      name: "Ruby",
+      type: "Rubies",
+      size: "3mm",
+      color: "Pinkish Red",
+      clarity: "SI",
+      quantity: 30,
+      status: "Available for use",
+      image: "/placeholder.svg?height=80&width=80",
     },
     {
-      header: "Total Weight",
-      accessor: "totalWeight",
-      render: (stone) => `${stone.totalWeight} ct`,
+      id: "EME005",
+      name: "Emerald",
+      type: "Emeralds",
+      size: "7mm",
+      color: "Deep Green",
+      clarity: "VS",
+      quantity: 12,
+      status: "Set",
+      image: "/placeholder.svg?height=80&width=80",
     },
     {
-      header: "Available Quantity",
-      accessor: "availableQuantity",
-    },
-    {
-      header: "Available Weight",
-      accessor: "availableWeight",
-      render: (stone) => `${stone.availableWeight} ct`,
-    },
-    {
-      header: "Price per Carat",
-      accessor: "pricePerCarat",
-      render: (stone) => `$${stone.pricePerCarat}`,
-    },
-    {
-      header: "Supplier",
-      accessor: "supplier",
-    },
-    {
-      header: "Last Updated",
-      accessor: "lastUpdated",
-      render: (stone) => new Date(stone.receivedDate).toLocaleDateString(),
-    },
-    {
-      header: "Actions",
-      accessor: "actions",
-      render: () => (
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="icon">
-            <Edit className="h-4 w-4" />
-            <span className="sr-only">Edit</span>
-          </Button>
-          <Button variant="ghost" size="icon">
-            <Trash2 className="h-4 w-4" />
-            <span className="sr-only">Delete</span>
-          </Button>
-        </div>
-      ),
-      className: "text-right",
+      id: "SAP006",
+      name: "Sapphire",
+      type: "Sapphires",
+      size: "4mm",
+      color: "Light Blue",
+      clarity: "VVS",
+      quantity: 28,
+      status: "Available for use",
+      image: "/placeholder.svg?height=80&width=80",
     },
   ]
 
@@ -169,52 +87,98 @@ export default function StonesPage() {
           <div className="flex items-center gap-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search stones..."
-                className="w-[300px] pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+              <Input type="search" placeholder="Search stones..." className="w-[300px] pl-8" />
             </div>
             <Button variant="outline">
               <Filter className="mr-2 h-4 w-4" />
               Filter
             </Button>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <Select>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Type" />
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="Ruby">Ruby</SelectItem>
-                <SelectItem value="Emerald">Emerald</SelectItem>
-                <SelectItem value="Sapphire">Sapphire</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="available">Available for use</SelectItem>
+                <SelectItem value="sent">Sent to manufacturer</SelectItem>
+                <SelectItem value="set">Set</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <Link href="/stones/new">
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              New Stone Lot
+              New Stone
             </Button>
           </Link>
         </div>
-
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold">Stone Inventory</h2>
+        <div className="border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[80px]">Image</TableHead>
+                <TableHead>Stone ID</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Size</TableHead>
+                <TableHead>Color</TableHead>
+                <TableHead>Clarity</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {stones.map((stone) => (
+                <TableRow key={stone.id}>
+                  <TableCell>
+                    <Image
+                      src={stone.image || "/placeholder.svg"}
+                      alt={stone.name}
+                      width={40}
+                      height={40}
+                      className="rounded-md object-cover"
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">{stone.id}</TableCell>
+                  <TableCell>{stone.name}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{stone.type}</Badge>
+                  </TableCell>
+                  <TableCell>{stone.size}</TableCell>
+                  <TableCell>{stone.color}</TableCell>
+                  <TableCell>{stone.clarity}</TableCell>
+                  <TableCell>{stone.quantity}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        stone.status === "Available for use"
+                          ? "outline"
+                          : stone.status === "Sent to manufacturer"
+                            ? "secondary"
+                            : "default"
+                      }
+                    >
+                      {stone.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="icon">
+                        <Edit className="h-4 w-4" />
+                        <span className="sr-only">Edit</span>
+                      </Button>
+                      <Button variant="ghost" size="icon">
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
-
-        <DataTable
-          columns={columns}
-          data={paginatedStones}
-          loading={loading}
-          error={error}
-          onRefresh={handleRefresh}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
       </main>
     </div>
   )

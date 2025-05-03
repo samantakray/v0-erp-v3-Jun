@@ -10,10 +10,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { StickerPreview } from "@/components/sticker-preview"
-import { AlertTriangle, CheckCircle2 } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react"
 import JobHeader from "../components/job-header"
 import PhaseNavigation from "../components/phase-navigation"
 import { JOB_PHASE } from "@/constants/job-workflow"
+import { updateJobPhase } from "@/app/actions/job-actions"
+import { logger } from "@/lib/logger"
 
 export default function QualityCheckPage({ params }: { params: { jobId: string; orderId: string } }) {
   const job = useJob()
@@ -26,6 +29,7 @@ export default function QualityCheckPage({ params }: { params: { jobId: string; 
   const [preview, setPreview] = useState(false)
   const [stickerData, setStickerData] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleCompleteQC = async (passed: boolean) => {
     if (!qcData.measuredWeight || isSubmitting) {
@@ -33,22 +37,27 @@ export default function QualityCheckPage({ params }: { params: { jobId: string; 
     }
 
     setIsSubmitting(true)
+    setError(null)
+
     try {
+      // Update local state
       setQcData({ ...qcData, passed })
 
-      // In a real app, this would be an API call
-      // await fetch(`/api/jobs/${job.id}/transition`, {
-      //   method: "PATCH",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({
-      //     step: "quality-check",
-      //     data: { ...qcData, passed },
-      //   }),
-      // });
+      // Prepare the data for the server action
+      const phaseData = {
+        measuredWeight: Number.parseFloat(qcData.measuredWeight),
+        notes: qcData.notes,
+        passed: passed,
+      }
 
-      // For now, we'll just set the sticker data
+      // Call the server action to update the job phase
+      const result = await updateJobPhase(job.id, JOB_PHASE.QC, phaseData)
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to complete quality check")
+      }
+
+      // Set the sticker data for preview
       setStickerData({
         "QC Result": passed ? "PASSED" : "FAILED",
         "Measured Weight": `${qcData.measuredWeight}g`,
@@ -56,7 +65,8 @@ export default function QualityCheckPage({ params }: { params: { jobId: string; 
       })
       setPreview(true)
     } catch (error) {
-      console.error("Error completing quality check:", error)
+      logger.error("Error completing quality check:", error)
+      setError(error.message || "Failed to complete quality check. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -64,7 +74,7 @@ export default function QualityCheckPage({ params }: { params: { jobId: string; 
 
   const handleStickerClose = () => {
     setPreview(false)
-    // In a real app, this would navigate to the next phase if passed
+    // Navigate to the next phase if passed
     if (qcData.passed) {
       router.push(`/orders/${params.orderId}/jobs/${params.jobId}/${JOB_PHASE.COMPLETE}`)
     }
@@ -74,6 +84,13 @@ export default function QualityCheckPage({ params }: { params: { jobId: string; 
     <div className="space-y-6">
       <JobHeader orderId={params.orderId} />
       <PhaseNavigation orderId={params.orderId} jobId={params.jobId} />
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader>

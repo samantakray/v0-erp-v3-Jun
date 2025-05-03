@@ -9,6 +9,8 @@ import { StickerPreview } from "@/components/sticker-preview"
 import JobHeader from "../components/job-header"
 import PhaseNavigation from "../components/phase-navigation"
 import { JOB_PHASE } from "@/constants/job-workflow"
+import { updateJobPhase } from "@/app/actions/job-actions"
+import { logger } from "@/lib/logger"
 
 // LotRow Component
 interface LotRowProps {
@@ -60,6 +62,7 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
   const [preview, setPreview] = useState(false)
   const [stickerData, setStickerData] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const firstInputRef = useRef<HTMLInputElement>(null)
 
   const add = () => setAllocs([...allocs, { lot: "", qty: 0, wt: "" }])
@@ -74,27 +77,37 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
     if (!isValid || isSubmitting) return
 
     setIsSubmitting(true)
-    try {
-      // In a real app, this would be an API call
-      // await fetch(`/api/jobs/${job.id}/transition`, {
-      //   method: "PATCH",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({
-      //     step: "stone-selection",
-      //     data: { allocations: allocs },
-      //   }),
-      // });
+    setError(null)
 
-      // For now, we'll just set the sticker data
+    try {
+      // Format allocation data
+      const allocationsData = allocs.map((a) => ({
+        lotNumber: a.lot,
+        quantity: a.qty,
+        weight: Number.parseFloat(a.wt),
+      }))
+
+      // Update job phase using server action
+      const result = await updateJobPhase(params.jobId, JOB_PHASE.STONE, {
+        allocations: allocationsData,
+        timestamp: new Date().toISOString(),
+      })
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to update job phase")
+      }
+
+      // Set sticker data for preview
       setStickerData(
         Object.fromEntries(allocs.map((a, i) => [`Lot ${i + 1}`, `${a.lot} (${a.qty} stones, ${a.wt} ct)`])),
       )
       setPreview(true)
     } catch (error) {
-      console.error("Error submitting allocation:", error)
-    } finally {
+      logger.error("Error submitting stone allocation:", {
+        data: { jobId: params.jobId },
+        error,
+      })
+      setError("Failed to submit allocation. Please try again.")
       setIsSubmitting(false)
     }
   }
@@ -108,7 +121,7 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
 
   const handleStickerClose = () => {
     setPreview(false)
-    // In a real app, this would navigate to the next phase
+    // Navigate to the next phase
     router.push(`/orders/${params.orderId}/jobs/${params.jobId}/${JOB_PHASE.DIAMOND}`)
   }
 
@@ -122,6 +135,7 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
           <CardTitle>Stone Selection</CardTitle>
         </CardHeader>
         <CardContent>
+          {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
           <form onSubmit={submit} className="space-y-4">
             <div className="border rounded-lg p-4">
               <h3 className="text-md font-semibold mb-4">Allocate Stones</h3>

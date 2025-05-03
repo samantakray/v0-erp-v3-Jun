@@ -78,6 +78,39 @@ export default function NewSKUPage() {
     return `${categoryPrefix}${skuNumber}${goldCode}${stoneCode}`
   }
 
+  // Change to:
+  // function generateSKU(category, skuNumber, goldType, stoneType) {
+  //   const categoryPrefix =
+  //     category === "Necklace"
+  //       ? "NK"
+  //       : category === "Earring"
+  //         ? "ER"
+  //         : category === "Bangle"
+  //           ? "BG"
+  //           : category === "Pendant"
+  //             ? "PN"
+  //             : category === "Ring"
+  //               ? "RG"
+  //               : ""
+
+  //   const goldCode =
+  //     goldType === "Yellow Gold" ? "YG" : goldType === "White Gold" ? "WG" : goldType === "Rose Gold" ? "RG" : ""
+
+  //   // Fix the stone type mapping to correctly handle plural forms
+  //   const stoneCode =
+  //     stoneType === "None"
+  //       ? "NO"
+  //       : stoneType === "Emeralds" || stoneType === "Emerald"
+  //         ? "EM"
+  //         : stoneType === "Rubies" || stoneType === "Ruby"
+  //           ? "RB"
+  //           : stoneType === "Sapphires" || stoneType === "Sapphire"
+  //             ? "SP"
+  //             : "NO"
+
+  //   return `${categoryPrefix}${skuNumber}${goldCode}${stoneCode}`
+  // }
+
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setImage(e.target.files[0])
@@ -223,18 +256,16 @@ export default function NewSKUPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="diamondType">Diamond Type</Label>
-                    <Select value={diamondType} onValueChange={setDiamondType} disabled={createMultiple}>
-                      <SelectTrigger id="diamondType">
-                        <SelectValue placeholder="Select diamond type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NONE">None</SelectItem>
-                        <SelectItem value="B12">B12</SelectItem>
-                        <SelectItem value="B6">B6</SelectItem>
-                        <SelectItem value="A">A</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="diamondType">Diamond Type (karat)</Label>
+                    <Input
+                      id="diamondType"
+                      type="number"
+                      step="0.01"
+                      placeholder="Enter diamond karat size"
+                      value={diamondType}
+                      onChange={(e) => setDiamondType(e.target.value)}
+                      disabled={createMultiple}
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -288,7 +319,7 @@ export default function NewSKUPage() {
                             <TableHead>Size</TableHead>
                             <TableHead>Gold Type</TableHead>
                             <TableHead>Stone Type</TableHead>
-                            <TableHead>Diamond Type</TableHead>
+                            <TableHead>Diamond (kt)</TableHead>
                             <TableHead>Weight (g)</TableHead>
                             <TableHead>Image</TableHead>
                             <TableHead></TableHead>
@@ -371,24 +402,17 @@ export default function NewSKUPage() {
                                   </Select>
                                 </TableCell>
                                 <TableCell>
-                                  <Select
+                                  <Input
+                                    type="number"
+                                    step="0.01"
                                     value={sku.diamondType}
-                                    onValueChange={(value) => {
+                                    onChange={(e) => {
                                       const newSkus = [...multipleSkus]
-                                      newSkus[index].diamondType = value
+                                      newSkus[index].diamondType = e.target.value
                                       setMultipleSkus(newSkus)
                                     }}
-                                  >
-                                    <SelectTrigger className="w-[120px]">
-                                      <SelectValue placeholder="Diamond Type" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="">None</SelectItem>
-                                      <SelectItem value="B12">B12</SelectItem>
-                                      <SelectItem value="B6">B6</SelectItem>
-                                      <SelectItem value="A">A</SelectItem>
-                                    </SelectContent>
-                                  </Select>
+                                    className="w-[80px]"
+                                  />
                                 </TableCell>
                                 <TableCell>
                                   <Input
@@ -495,17 +519,14 @@ export default function NewSKUPage() {
                                 </Select>
                               </TableCell>
                               <TableCell>
-                                <Select value={diamondType} onValueChange={setDiamondType}>
-                                  <SelectTrigger className="w-[120px]">
-                                    <SelectValue placeholder="Diamond Type" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="">None</SelectItem>
-                                    <SelectItem value="B12">B12</SelectItem>
-                                    <SelectItem value="B6">B6</SelectItem>
-                                    <SelectItem value="A">A</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={diamondType}
+                                  onChange={(e) => setDiamondType(e.target.value)}
+                                  className="w-[80px]"
+                                  placeholder="Enter karat"
+                                />
                               </TableCell>
                               <TableCell>
                                 <Input
@@ -575,7 +596,7 @@ export default function NewSKUPage() {
                         <TableHead>Size</TableHead>
                         <TableHead>Gold Type</TableHead>
                         <TableHead>Stone Type</TableHead>
-                        <TableHead>Diamond Type</TableHead>
+                        <TableHead>Diamond (kt)</TableHead>
                         <TableHead>Weight (g)</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -590,7 +611,7 @@ export default function NewSKUPage() {
                             <TableCell>{sku.size || "N/A"}</TableCell>
                             <TableCell>{sku.goldType}</TableCell>
                             <TableCell>{sku.stoneType}</TableCell>
-                            <TableCell>{sku.diamondType || "None"}</TableCell>
+                            <TableCell>{sku.diamondType || "N/A"}</TableCell>
                             <TableCell>{sku.weight || "N/A"}</TableCell>
                           </TableRow>
                         ))
@@ -603,7 +624,7 @@ export default function NewSKUPage() {
                           <TableCell>{size || "N/A"}</TableCell>
                           <TableCell>{goldType}</TableCell>
                           <TableCell>{stoneType}</TableCell>
-                          <TableCell>{diamondType || "None"}</TableCell>
+                          <TableCell>{diamondType || "N/A"}</TableCell>
                           <TableCell>{weight || "N/A"}</TableCell>
                         </TableRow>
                       )}

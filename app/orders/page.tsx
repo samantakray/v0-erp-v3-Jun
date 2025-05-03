@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Eye, Filter, Calendar, Edit, Trash2, Clock } from "lucide-react"
+import { Plus, Search, Eye, Filter, Calendar, Edit, Trash2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { OrderDetailSheet } from "@/components/order-detail-sheet"
 import { NewOrderSheet } from "@/components/new-order-sheet"
@@ -27,8 +27,6 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("pending")
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
 
   // Fetch orders
   useEffect(() => {
@@ -117,23 +115,6 @@ export default function OrdersPage() {
       className: "font-medium",
     },
     {
-      header: "Order Type",
-      accessor: "orderType",
-      render: (row) => (
-        <Badge
-          className={
-            row.orderType === "Stock"
-              ? "bg-blue-100 text-blue-800 border-blue-300"
-              : row.orderType === "Customer"
-                ? "bg-purple-100 text-purple-800 border-purple-300"
-                : "bg-gray-100 text-gray-800 border-gray-300"
-          }
-        >
-          {row.orderType}
-        </Badge>
-      ),
-    },
-    {
       header: "Jobs",
       accessor: "skus",
       render: (row) => (
@@ -205,36 +186,6 @@ export default function OrdersPage() {
       ),
     },
     {
-      header: "History",
-      accessor: "history",
-      render: (row) => (
-        <div className="max-w-xs">
-          {row.history && row.history.length > 0 ? (
-            <div className="space-y-1">
-              {row.history.slice(0, 3).map((item, index) => (
-                <div key={index} className="flex items-start text-xs">
-                  <Clock className="h-3 w-3 mr-1 mt-0.5 text-gray-500" />
-                  <div>
-                    <span className="font-medium">{item.action}</span>
-                    <div className="text-gray-500">
-                      {new Date(item.date).toLocaleDateString()} by {item.user}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {row.history.length > 3 && (
-                <div className="text-xs text-blue-600 cursor-pointer hover:underline">
-                  +{row.history.length - 3} more entries
-                </div>
-              )}
-            </div>
-          ) : (
-            <span className="text-gray-500 text-sm">No history available</span>
-          )}
-        </div>
-      ),
-    },
-    {
       header: "Order Actions",
       accessor: "id",
       className: "text-right",
@@ -295,48 +246,15 @@ export default function OrdersPage() {
     },
   ]
 
-  // Filter orders based on active tab, search term, and status filter
+  // Filter orders based on active tab
   const filteredOrders = orders.filter((order) => {
-    // Tab filter
-    if (activeTab === "pending" && !["New", "Pending", "Draft"].includes(order.status)) {
-      return false
+    if (activeTab === "pending") {
+      return ["New", "Pending", "Draft"].includes(order.status)
+    } else if (activeTab === "completed") {
+      return order.status === "Completed"
     }
-    if (activeTab === "completed" && order.status !== "Completed") {
-      return false
-    }
-
-    // Search filter
-    if (
-      searchTerm &&
-      !order.id.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      !order.customerName.toLowerCase().includes(searchTerm.toLowerCase())
-    ) {
-      return false
-    }
-
-    // Status filter
-    if (statusFilter !== "all" && order.status.toLowerCase() !== statusFilter.toLowerCase()) {
-      return false
-    }
-
     return true
   })
-
-  // Calculate total pages
-  const itemsPerPage = 5
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / itemsPerPage))
-
-  // Get current page data
-  const getCurrentPageData = () => {
-    const startIndex = (currentPage - 1) * itemsPerPage
-    const endIndex = startIndex + itemsPerPage
-    return filteredOrders.slice(startIndex, endIndex)
-  }
-
-  // Reset to page 1 when changing filters
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [activeTab, searchTerm, statusFilter])
 
   // Mock refresh function
   const handleRefresh = () => {
@@ -368,6 +286,21 @@ export default function OrdersPage() {
         setLoading(false)
       })
   }
+
+  // Calculate total pages based on filtered data length
+  const totalPages = Math.ceil(filteredOrders.length / 5)
+
+  // Get current page data
+  const getCurrentPageData = () => {
+    const startIndex = (currentPage - 1) * 5
+    const endIndex = startIndex + 5
+    return filteredOrders.slice(startIndex, endIndex)
+  }
+
+  // Reset to page 1 when changing tabs
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [activeTab])
 
   return (
     <div className="flex flex-col">
@@ -416,20 +349,14 @@ export default function OrdersPage() {
             <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search orders..."
-                  className="w-[300px] pl-8"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+                <Input type="search" placeholder="Search orders..." className="w-[300px] pl-8" />
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm">
                   <Filter className="mr-2 h-4 w-4" />
                   Filter
                 </Button>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>

@@ -26,14 +26,13 @@ export const orders: Order[] = [
     dueDate: "2025-05-10",
     productionDate: "2025-05-03",
     status: "New",
+    action: "Stone selection",
     daysToDue: 6,
     remarks: "Priority stock order",
     createdAt: "2025-04-25",
     history: [
       { date: "2025-04-25", action: "Order created", user: "Jane Doe" },
       { date: "2025-04-26", action: "Order approved", user: "Emma Wilson" },
-      { date: "2025-04-27", action: "Production scheduled", user: "Michael Chen" },
-      { date: "2025-04-28", action: "Materials ordered", user: "Sarah Johnson" },
     ],
   },
   {
@@ -61,14 +60,9 @@ export const orders: Order[] = [
     dueDate: "2025-05-15",
     productionDate: "2025-05-08",
     status: "Pending",
+    action: "Manufacturer selection",
     daysToDue: 3,
     remarks: "VIP customer order",
-    createdAt: "2025-04-20",
-    history: [
-      { date: "2025-04-20", action: "Order created", user: "Robert Brown" },
-      { date: "2025-04-22", action: "Customer approval received", user: "Emma Wilson" },
-      { date: "2025-04-24", action: "Gemstones selected", user: "Michael Chen" },
-    ],
   },
   {
     id: "O10003",
@@ -95,15 +89,8 @@ export const orders: Order[] = [
     dueDate: "2025-04-28",
     productionDate: "2025-04-21",
     status: "Completed",
+    action: "Order completed",
     daysToDue: 1,
     remarks: "Seasonal collection",
-    createdAt: "2025-04-10",
-    history: [
-      { date: "2025-04-10", action: "Order created", user: "Jane Doe" },
-      { date: "2025-04-12", action: "Production started", user: "Michael Chen" },
-      { date: "2025-04-18", action: "Quality check passed", user: "Sarah Johnson" },
-      { date: "2025-04-20", action: "Order completed", user: "Emma Wilson" },
-      { date: "2025-04-21", action: "Shipped to warehouse", user: "Robert Brown" },
-    ],
   },
 ]

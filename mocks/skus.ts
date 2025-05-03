@@ -7,8 +7,8 @@ export const skus: SKU[] = [
     category: "Necklace",
     size: "18",
     goldType: "Yellow Gold",
-    stoneType: "Rubies",
-    diamondType: "B12",
+    stoneType: "None",
+    diamondType: "0.5",
     image: "/placeholder.svg?height=80&width=80&text=Necklace",
   },
   {
@@ -17,8 +17,8 @@ export const skus: SKU[] = [
     category: "Ring",
     size: "7",
     goldType: "White Gold",
-    stoneType: "Sapphires",
-    diamondType: "B6",
+    stoneType: "None",
+    diamondType: "1.0",
     image: "/placeholder.svg?height=80&width=80&text=Ring",
   },
   {
@@ -28,7 +28,7 @@ export const skus: SKU[] = [
     size: "10",
     goldType: "Yellow Gold",
     stoneType: "Rubies",
-    diamondType: "B12",
+    diamondType: "0.25",
     image: "/placeholder.svg?height=80&width=80&text=Earring",
   },
   {
@@ -38,7 +38,7 @@ export const skus: SKU[] = [
     size: "15",
     goldType: "Yellow Gold",
     stoneType: "Emeralds",
-    diamondType: "B6",
+    diamondType: "0.3",
     image: "/placeholder.svg?height=80&width=80&text=Pendant",
   },
   {
@@ -47,8 +47,8 @@ export const skus: SKU[] = [
     category: "Bangle",
     size: "65",
     goldType: "Rose Gold",
-    stoneType: "Emeralds",
-    diamondType: "B6",
+    stoneType: "None",
+    diamondType: "0",
     image: "/placeholder.svg?height=80&width=80&text=Bangle",
   },
 ]

@@ -5,20 +5,18 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Plus, Eye, Edit, Trash2 } from "lucide-react"
+import { ArrowLeft, Plus } from "lucide-react"
 import { fetchJobs } from "@/lib/api-service"
 import type { Job } from "@/types"
 import { JOB_STATUS, JOB_PHASE } from "@/constants/job-workflow"
-import { DataTable, type Column } from "@/app/components/DataTable"
 
 export default function JobsPage({ params }: { params: { orderId: string } }) {
   const router = useRouter()
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 10
 
   useEffect(() => {
     async function loadJobs() {
@@ -60,101 +58,6 @@ export default function JobsPage({ params }: { params: { orderId: string } }) {
     }
   }
 
-  // Calculate pagination
-  const totalPages = Math.max(1, Math.ceil(jobs.length / itemsPerPage))
-
-  // Get current page data
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const paginatedJobs = jobs.slice(startIndex, startIndex + itemsPerPage)
-
-  const handleRefresh = () => {
-    setLoading(true)
-    // Fetch jobs again
-    fetchJobs(params.orderId)
-      .then((data) => {
-        setJobs(data)
-      })
-      .catch((err) => {
-        console.error("Failed to refresh jobs:", err)
-        setError("Failed to refresh jobs. Please try again.")
-      })
-      .finally(() => {
-        setLoading(false)
-      })
-  }
-
-  // Define columns for DataTable
-  const columns: Column<Job>[] = [
-    {
-      header: "Job ID",
-      accessor: "id",
-      render: (job) => <span className="font-medium">{job.id}</span>,
-    },
-    {
-      header: "SKU",
-      accessor: "skuId",
-    },
-    {
-      header: "Name",
-      accessor: "name",
-    },
-    {
-      header: "Status",
-      accessor: "status",
-      render: (job) => <Badge>{job.status}</Badge>,
-    },
-    {
-      header: "Production Date",
-      accessor: "productionDate",
-      render: (job) => new Date(job.productionDate).toLocaleDateString(),
-    },
-    {
-      header: "Actions",
-      accessor: "actions",
-      render: (job) => (
-        <div className="flex justify-end gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="flex flex-col items-center gap-1"
-            onClick={() => {
-              router.push(`/orders/${params.orderId}/jobs/${job.id}/${getJobRoute(job)}`)
-            }}
-          >
-            <Eye className="h-4 w-4" />
-            <span className="text-[10px]">View</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="flex flex-col items-center gap-1"
-            onClick={() => {
-              // Edit job
-              console.log("Edit job:", job.id)
-            }}
-          >
-            <Edit className="h-4 w-4" />
-            <span className="text-[10px]">Edit</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="flex flex-col items-center gap-1 text-red-500 hover:text-red-600"
-            onClick={() => {
-              // Delete job
-              console.log("Delete job:", job.id)
-              alert(`Delete job ${job.id}?`)
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-            <span className="text-[10px]">Delete</span>
-          </Button>
-        </div>
-      ),
-      className: "text-right",
-    },
-  ]
-
   return (
     <div className="container mx-auto py-6">
       <div className="flex items-center justify-between mb-6">
@@ -178,16 +81,47 @@ export default function JobsPage({ params }: { params: { orderId: string } }) {
           <CardTitle>Jobs List</CardTitle>
         </CardHeader>
         <CardContent>
-          <DataTable
-            columns={columns}
-            data={paginatedJobs}
-            loading={loading}
-            error={error}
-            onRefresh={handleRefresh}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
+          {loading ? (
+            <div className="p-8 text-center">Loading jobs...</div>
+          ) : error ? (
+            <div className="p-8 text-center text-red-500">{error}</div>
+          ) : jobs.length === 0 ? (
+            <div className="p-8 text-center">No jobs found for this order.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Job ID</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Production Date</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {jobs.map((job) => (
+                  <TableRow key={job.id}>
+                    <TableCell>{job.id}</TableCell>
+                    <TableCell>{job.skuId}</TableCell>
+                    <TableCell>{job.name}</TableCell>
+                    <TableCell>
+                      <Badge>{job.status}</Badge>
+                    </TableCell>
+                    <TableCell>{new Date(job.productionDate).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/orders/${params.orderId}/jobs/${job.id}/${getJobRoute(job)}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        View Details
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -10,9 +10,13 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StickerPreview } from "@/components/sticker-preview"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 import JobHeader from "../components/job-header"
 import PhaseNavigation from "../components/phase-navigation"
 import { JOB_PHASE } from "@/constants/job-workflow"
+import { updateJobPhase } from "@/app/actions/job-actions"
+import { logger } from "@/lib/logger"
 
 // Mock manufacturers data
 const MANUFACTURERS = [
@@ -56,6 +60,7 @@ export default function ManufacturerPage({ params }: { params: { jobId: string; 
   const [preview, setPreview] = useState(false)
   const [stickerData, setStickerData] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleAssignManufacturer = async (e) => {
     e.preventDefault()
@@ -64,29 +69,38 @@ export default function ManufacturerPage({ params }: { params: { jobId: string; 
     }
 
     setIsSubmitting(true)
+    setError(null)
+
     try {
       const selectedManufacturer = MANUFACTURERS.find((m) => m.id === manufacturerData.manufacturerId)
 
-      // In a real app, this would be an API call
-      // await fetch(`/api/jobs/${job.id}/transition`, {
-      //   method: "PATCH",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({
-      //     step: "manufacturer",
-      //     data: manufacturerData,
-      //   }),
-      // });
+      if (!selectedManufacturer) {
+        throw new Error("Selected manufacturer not found")
+      }
 
-      // For now, we'll just set the sticker data
+      // Prepare the data for the server action
+      const phaseData = {
+        manufacturerId: manufacturerData.manufacturerId,
+        manufacturerName: selectedManufacturer.name,
+        expectedCompletion: manufacturerData.expectedCompletion,
+      }
+
+      // Call the server action to update the job phase
+      const result = await updateJobPhase(job.id, JOB_PHASE.MANUFACTURER, phaseData)
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to assign manufacturer")
+      }
+
+      // Set the sticker data for preview
       setStickerData({
-        Manufacturer: selectedManufacturer?.name || "Unknown",
+        Manufacturer: selectedManufacturer.name,
         "Expected Completion": new Date(manufacturerData.expectedCompletion).toLocaleDateString(),
       })
       setPreview(true)
     } catch (error) {
-      console.error("Error assigning manufacturer:", error)
+      logger.error("Error assigning manufacturer:", error)
+      setError(error.message || "Failed to assign manufacturer. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -94,7 +108,7 @@ export default function ManufacturerPage({ params }: { params: { jobId: string; 
 
   const handleStickerClose = () => {
     setPreview(false)
-    // In a real app, this would navigate to the next phase
+    // Navigate to the next phase
     router.push(`/orders/${params.orderId}/jobs/${params.jobId}/${JOB_PHASE.QC}`)
   }
 
@@ -102,6 +116,13 @@ export default function ManufacturerPage({ params }: { params: { jobId: string; 
     <div className="space-y-6">
       <JobHeader orderId={params.orderId} />
       <PhaseNavigation orderId={params.orderId} jobId={params.jobId} />
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader>

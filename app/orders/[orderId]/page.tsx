@@ -1,61 +1,38 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { fetchOrder } from "@/lib/api-service"
+import type { Order } from "@/types"
+import { logger } from "@/lib/logger"
 
-export default function OrderDetailsPage({ params }) {
+export default function OrderDetailsPage({ params }: { params: { orderId: string } }) {
   const router = useRouter()
-  const { id } = params
+  const orderId = params.orderId
+  const [order, setOrder] = useState<Order | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  // Fetch order data
+  useEffect(() => {
+    async function loadOrder() {
+      try {
+        const { order: orderData } = await fetchOrder(orderId)
+        setOrder(orderData)
+      } catch (error) {
+        logger.error("Error fetching order", { data: { orderId }, error })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadOrder()
+  }, [orderId])
 
   // Redirect to orders page with the order ID as a query parameter
   useEffect(() => {
-    router.push(`/orders?orderId=${id}`)
-  }, [id, router])
+    router.push(`/orders?orderId=${orderId}`)
+  }, [orderId, router])
 
-  // Mock order data
-  const order = {
-    id: id,
-    skus: [
-      {
-        id: "N12345",
-        name: "Gold Necklace",
-        quantity: 5,
-        category: "Necklace",
-        goldType: "Yellow Gold",
-        stoneType: "None",
-        diamondType: "0.5",
-        image: "/placeholder.svg?height=80&width=80",
-      },
-      {
-        id: "R45678",
-        name: "Diamond Ring",
-        quantity: 3,
-        category: "Ring",
-        goldType: "White Gold",
-        stoneType: "None",
-        diamondType: "1.0",
-        image: "/placeholder.svg?height=80&width=80",
-      },
-    ],
-    dueDate: "2025-04-15",
-    productionDate: "2025-04-08",
-    status: "New",
-    action: "Stone selection",
-    createdAt: "2025-03-20",
-    history: [
-      { date: "2025-03-20", action: "Order created", user: "John Smith" },
-      { date: "2025-03-21", action: "Order approved", user: "Sarah Johnson" },
-    ],
-  }
-
-  const [currentStatus, setCurrentStatus] = useState(order.status)
-  const [currentAction, setCurrentAction] = useState(order.action)
-
-  const handleStatusChange = (status) => {
-    setCurrentStatus(status)
-    // In a real app, you would update the backend here
-  }
-
+  // This component doesn't render anything as it redirects
   return null
 }

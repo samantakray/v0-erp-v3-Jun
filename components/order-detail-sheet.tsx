@@ -459,35 +459,35 @@ export function OrderDetailSheet({ orderId, open, onOpenChange, onEdit }) {
                       onClick={() => setSelectedTeam("bag")}
                       className="rounded-md"
                     >
-                      Bag Creation
+                      Bag Creation Team
                     </Button>
                     <Button
                       variant={selectedTeam === "stone" ? "default" : "outline"}
                       onClick={() => setSelectedTeam("stone")}
                       className="rounded-md"
                     >
-                      Stone Selection
+                      Stone Selection Team
                     </Button>
                     <Button
                       variant={selectedTeam === "diamond" ? "default" : "outline"}
                       onClick={() => setSelectedTeam("diamond")}
                       className="rounded-md"
                     >
-                      Diamond Selection
+                      Diamond Selection Team
                     </Button>
                     <Button
                       variant={selectedTeam === "manufacturer" ? "default" : "outline"}
                       onClick={() => setSelectedTeam("manufacturer")}
                       className="rounded-md"
                     >
-                      Manufacturer Selection
+                      Manufacturer Selection Team
                     </Button>
                     <Button
                       variant={selectedTeam === "qc" ? "default" : "outline"}
                       onClick={() => setSelectedTeam("qc")}
                       className="rounded-md"
                     >
-                      Quality Control
+                      Quality Control Team
                     </Button>
                   </div>
                   <NextTaskModule selectedTeam={selectedTeam} jobs={jobs} onProcessJob={handleProcessJob} />

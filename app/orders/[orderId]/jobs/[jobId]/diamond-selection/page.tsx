@@ -10,9 +10,13 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { StickerPreview } from "@/components/sticker-preview"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 import JobHeader from "../components/job-header"
 import PhaseNavigation from "../components/phase-navigation"
 import { JOB_PHASE } from "@/constants/job-workflow"
+import { updateJobPhase } from "@/app/actions/job-actions"
+import { logger } from "@/lib/logger"
 
 // Mock diamond lots
 const DIAMOND_LOTS = ["LOT-D001", "LOT-D002", "LOT-D003", "LOT-D004"]
@@ -30,6 +34,7 @@ export default function DiamondSelectionPage({ params }: { params: { jobId: stri
   const [preview, setPreview] = useState(false)
   const [stickerData, setStickerData] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleCompleteDiamondSelection = async (e) => {
     e.preventDefault()
@@ -45,20 +50,26 @@ export default function DiamondSelectionPage({ params }: { params: { jobId: stri
     }
 
     setIsSubmitting(true)
-    try {
-      // In a real app, this would be an API call
-      // await fetch(`/api/jobs/${job.id}/transition`, {
-      //   method: "PATCH",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({
-      //     step: "diamond-selection",
-      //     data: diamondData,
-      //   }),
-      // });
+    setError(null)
 
-      // For now, we'll just set the sticker data
+    try {
+      // Prepare the data for the server action
+      const phaseData = {
+        lotNumber: diamondData.lotNumber,
+        karat: diamondData.karat,
+        clarity: diamondData.clarity,
+        diamondCount: Number.parseInt(diamondData.diamondCount),
+        totalWeight: Number.parseFloat(diamondData.totalWeight),
+      }
+
+      // Call the server action to update the job phase
+      const result = await updateJobPhase(job.id, JOB_PHASE.DIAMOND_SELECTION, phaseData)
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to update diamond selection")
+      }
+
+      // Set the sticker data for preview
       setStickerData({
         "Lot Number": diamondData.lotNumber,
         Karat: diamondData.karat,
@@ -68,7 +79,8 @@ export default function DiamondSelectionPage({ params }: { params: { jobId: stri
       })
       setPreview(true)
     } catch (error) {
-      console.error("Error submitting diamond selection:", error)
+      logger.error("Error submitting diamond selection:", error)
+      setError(error.message || "Failed to complete diamond selection. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -76,7 +88,7 @@ export default function DiamondSelectionPage({ params }: { params: { jobId: stri
 
   const handleStickerClose = () => {
     setPreview(false)
-    // In a real app, this would navigate to the next phase
+    // Navigate to the next phase
     router.push(`/orders/${params.orderId}/jobs/${params.jobId}/${JOB_PHASE.MANUFACTURER}`)
   }
 
@@ -84,6 +96,13 @@ export default function DiamondSelectionPage({ params }: { params: { jobId: stri
     <div className="space-y-6">
       <JobHeader orderId={params.orderId} />
       <PhaseNavigation orderId={params.orderId} jobId={params.jobId} />
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader>

@@ -39,9 +39,6 @@ export function DataTable<T extends { id: string }>({
   totalPages,
   onPageChange,
 }: DataTableProps<T>) {
-  // Check if data is available and not empty
-  const hasData = !loading && data && data.length > 0
-
   return (
     <div className="relative w-full rounded-lg border border-gray-200 shadow-sm bg-white">
       {/* Table Caption */}
@@ -120,7 +117,9 @@ export function DataTable<T extends { id: string }>({
       {/* Pagination and Refresh Controls */}
       <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
         {/* Left: Page Info */}
-        <div className="text-sm text-gray-500">{hasData ? `Page ${currentPage} of ${totalPages}` : "No data"}</div>
+        <div className="text-sm text-gray-500">
+          Page {currentPage} of {totalPages}
+        </div>
 
         {/* Center: Pagination Controls */}
         <div className="flex items-center gap-2">

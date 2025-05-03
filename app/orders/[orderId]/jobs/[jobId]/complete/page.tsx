@@ -7,9 +7,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { StickerPreview } from "@/components/sticker-preview"
-import { CheckCircle2 } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle, CheckCircle2 } from "lucide-react"
 import JobHeader from "../components/job-header"
 import PhaseNavigation from "../components/phase-navigation"
+import { updateJobPhase } from "@/app/actions/job-actions"
+import { JOB_PHASE } from "@/constants/job-workflow"
+import { logger } from "@/lib/logger"
 
 export default function CompletePage({ params }: { params: { jobId: string; orderId: string } }) {
   const job = useJob()
@@ -17,32 +21,37 @@ export default function CompletePage({ params }: { params: { jobId: string; orde
   const [preview, setPreview] = useState(false)
   const [stickerData, setStickerData] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleCompleteJob = async () => {
     if (isSubmitting) return
 
     setIsSubmitting(true)
-    try {
-      // In a real app, this would be an API call
-      // await fetch(`/api/jobs/${job.id}/transition`, {
-      //   method: "PATCH",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({
-      //     step: "complete",
-      //     data: {},
-      //   }),
-      // });
+    setError(null)
 
-      // For now, we'll just set the sticker data
+    try {
+      // Prepare the data for the server action
+      const phaseData = {
+        completionDate: new Date().toISOString(),
+        finalStatus: "Completed",
+      }
+
+      // Call the server action to update the job phase
+      const result = await updateJobPhase(job.id, JOB_PHASE.COMPLETE, phaseData)
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to complete job")
+      }
+
+      // Set the sticker data for preview
       setStickerData({
         "Completion Date": new Date().toLocaleDateString(),
         "Final Status": "Completed",
       })
       setPreview(true)
     } catch (error) {
-      console.error("Error completing job:", error)
+      logger.error("Error completing job:", error)
+      setError(error.message || "Failed to complete job. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -50,7 +59,7 @@ export default function CompletePage({ params }: { params: { jobId: string; orde
 
   const handleStickerClose = () => {
     setPreview(false)
-    // In a real app, this would navigate back to the order
+    // Navigate back to the order
     router.push(`/orders/${params.orderId}`)
   }
 
@@ -64,6 +73,13 @@ export default function CompletePage({ params }: { params: { jobId: string; orde
     <div className="space-y-6">
       <JobHeader orderId={params.orderId} />
       <PhaseNavigation orderId={params.orderId} jobId={params.jobId} />
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader>

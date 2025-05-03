@@ -184,7 +184,6 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                           <TableHead>Size</TableHead>
                           <TableHead>Gold Type</TableHead>
                           <TableHead>Stone Type</TableHead>
-                          <TableHead>Diamond Type</TableHead>
                           <TableHead>Image</TableHead>
                           <TableHead></TableHead>
                         </TableRow>
@@ -261,26 +260,6 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                                   <SelectItem value="Rubies">Rubies</SelectItem>
                                   <SelectItem value="Emeralds">Emeralds</SelectItem>
                                   <SelectItem value="Sapphires">Sapphires</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell>
-                              <Select
-                                value={sku.diamondType}
-                                onValueChange={(value) => {
-                                  const newSkus = [...multipleSkus]
-                                  newSkus[index].diamondType = value
-                                  setMultipleSkus(newSkus)
-                                }}
-                              >
-                                <SelectTrigger className="w-[120px]">
-                                  <SelectValue placeholder="Diamond Type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="None">None</SelectItem>
-                                  <SelectItem value="B12">B12</SelectItem>
-                                  <SelectItem value="B6">B6</SelectItem>
-                                  <SelectItem value="A">A</SelectItem>
                                 </SelectContent>
                               </Select>
                             </TableCell>
@@ -373,7 +352,6 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                       <TableHead>Size</TableHead>
                       <TableHead>Gold Type</TableHead>
                       <TableHead>Stone Type</TableHead>
-                      <TableHead>Diamond Type</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -386,7 +364,6 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                         <TableCell>{sku.size || "N/A"}</TableCell>
                         <TableCell>{sku.goldType}</TableCell>
                         <TableCell>{sku.stoneType}</TableCell>
-                        <TableCell>{sku.diamondType || "None"}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

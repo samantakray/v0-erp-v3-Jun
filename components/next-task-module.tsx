@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Clock, Package } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { JOB_STATUS, STATUS_INFO } from "@/constants/job-workflow"
+import { JOB_STATUS, PHASE_INFO } from "@/constants/job-workflow"
 
 interface NextTaskModuleProps {
   selectedTeam: string
@@ -41,7 +41,7 @@ export function NextTaskModule({ selectedTeam, jobs, onProcessJob }: NextTaskMod
 
   // Get badge color based on job status
   const getBadgeColor = (status: string) => {
-    return STATUS_INFO[status]?.color || "bg-gray-500"
+    return PHASE_INFO[status]?.color || "bg-gray-500"
   }
 
   return (

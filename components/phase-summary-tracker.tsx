@@ -7,10 +7,10 @@ import { JOB_STATUS } from "@/constants/job-workflow"
 // Define the phases and their display names using our constants
 const PHASES = [
   { id: JOB_STATUS.NEW, label: "New jobs" },
-  { id: JOB_STATUS.BAG_CREATED, label: "Bag created" },
-  { id: JOB_STATUS.STONE_SELECTED, label: "Stone selected" },
-  { id: JOB_STATUS.DIAMOND_SELECTED, label: "Diamond selected" },
-  { id: JOB_STATUS.IN_PRODUCTION, label: "Production work" },
+  { id: JOB_STATUS.BAG_CREATED, label: "Bag creation" },
+  { id: JOB_STATUS.STONE_SELECTED, label: "Stone selection" },
+  { id: JOB_STATUS.DIAMOND_SELECTED, label: "Diamond selection" },
+  { id: JOB_STATUS.IN_PRODUCTION, label: "Production" },
   { id: JOB_STATUS.QC_PASSED, label: "Quality Checking" },
   { id: JOB_STATUS.COMPLETED, label: "Complete" },
 ]
