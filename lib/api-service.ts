@@ -563,3 +563,182 @@ export async function fetchCustomers() {
     return []
   }
 }
+
+// Add the function to fetch manufacturers
+export async function fetchManufacturers() {
+  const startTime = performance.now()
+  logger.info(`fetchManufacturers called`, { data: { useMocks } })
+
+  if (useMocks) {
+    // Mock data for manufacturers
+    const mockManufacturers = [
+      {
+        id: "1",
+        name: "Precision Crafters",
+        current_load: 5,
+        past_job_count: 120,
+        rating: 4.8,
+        active: true,
+        created_at: "2023-01-15T08:30:00Z",
+      },
+      {
+        id: "2",
+        name: "Elite Jewel Works",
+        current_load: 3,
+        past_job_count: 85,
+        rating: 4.5,
+        active: true,
+        created_at: "2023-02-20T10:15:00Z",
+      },
+      {
+        id: "3",
+        name: "Artisan Metals",
+        current_load: 7,
+        past_job_count: 210,
+        rating: 4.9,
+        active: true,
+        created_at: "2022-11-05T14:45:00Z",
+      },
+      {
+        id: "4",
+        name: "Heritage Goldsmiths",
+        current_load: 2,
+        past_job_count: 65,
+        rating: 4.3,
+        active: true,
+        created_at: "2023-03-10T09:20:00Z",
+      },
+      {
+        id: "5",
+        name: "Modern Jewelry Fabrication",
+        current_load: 0,
+        past_job_count: 45,
+        rating: 4.0,
+        active: false,
+        created_at: "2023-04-25T11:30:00Z",
+      },
+    ]
+
+    const duration = performance.now() - startTime
+    logger.info(`fetchManufacturers completed with mock data`, {
+      data: { count: mockManufacturers.length },
+      duration,
+    })
+    return mockManufacturers
+  }
+
+  try {
+    // Get all manufacturers
+    logger.debug(`Fetching manufacturers from Supabase`)
+    const { data, error } = await supabase.from("manufacturers").select("*").order("name", { ascending: true })
+
+    if (error) {
+      const duration = performance.now() - startTime
+      logger.error(`Error fetching manufacturers from Supabase`, {
+        error,
+        duration,
+      })
+      return []
+    }
+
+    // Check if manufacturers are empty
+    if (!data || data.length === 0) {
+      logger.warn(`No manufacturers found in database`)
+      return []
+    }
+
+    const duration = performance.now() - startTime
+    logger.info(`fetchManufacturers completed successfully`, {
+      data: { count: data.length },
+      duration,
+    })
+
+    return data
+  } catch (error) {
+    const duration = performance.now() - startTime
+    logger.error(`Unexpected error in fetchManufacturers`, {
+      error,
+      duration,
+    })
+    return []
+  }
+}
+
+// Add function to create a new manufacturer
+export async function createManufacturer(manufacturerData: {
+  name: string
+  current_load?: number | null
+  past_job_count?: number | null
+  rating?: number | null
+  active: boolean
+}) {
+  const startTime = performance.now()
+  logger.info(`createManufacturer called`, { data: { manufacturerData, useMocks } })
+
+  if (useMocks) {
+    // Simulate creating a manufacturer in mock mode
+    const mockManufacturer = {
+      id: Math.random().toString(36).substring(2, 11),
+      name: manufacturerData.name,
+      current_load: manufacturerData.current_load || 0,
+      past_job_count: manufacturerData.past_job_count || 0,
+      rating: manufacturerData.rating || 0,
+      active: manufacturerData.active,
+      created_at: new Date().toISOString(),
+    }
+
+    const duration = performance.now() - startTime
+    logger.info(`createManufacturer completed with mock data`, {
+      data: { manufacturer: mockManufacturer },
+      duration,
+    })
+    return { success: true, data: mockManufacturer }
+  }
+
+  try {
+    // Create new manufacturer in Supabase
+    logger.debug(`Creating new manufacturer in Supabase`, { data: manufacturerData })
+
+    // Ensure all numeric fields are properly formatted
+    const dataToInsert = {
+      name: manufacturerData.name,
+      current_load: manufacturerData.current_load !== undefined ? manufacturerData.current_load : null,
+      past_job_count: manufacturerData.past_job_count !== undefined ? manufacturerData.past_job_count : null,
+      rating: manufacturerData.rating !== undefined ? manufacturerData.rating : null,
+      active: manufacturerData.active,
+    }
+
+    logger.debug(`Formatted data for insert`, { data: dataToInsert })
+
+    const { data, error } = await supabase.from("manufacturers").insert([dataToInsert]).select()
+
+    if (error) {
+      const duration = performance.now() - startTime
+      logger.error(`Error creating manufacturer in Supabase`, {
+        data: manufacturerData,
+        error: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        duration,
+      })
+      return { success: false, error: error.message }
+    }
+
+    const duration = performance.now() - startTime
+    logger.info(`createManufacturer completed successfully`, {
+      data: { manufacturer: data[0] },
+      duration,
+    })
+    return { success: true, data: data[0] }
+  } catch (error: any) {
+    const duration = performance.now() - startTime
+    logger.error(`Unexpected error in createManufacturer`, {
+      data: manufacturerData,
+      error: error.message || error,
+      stack: error.stack,
+      duration,
+    })
+    return { success: false, error: error.message || "An unexpected error occurred" }
+  }
+}
