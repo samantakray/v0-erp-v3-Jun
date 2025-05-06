@@ -20,8 +20,12 @@ export default function RootLayout({
 }) {
   // This will run the validation when the app starts in development mode
   if (process.env.NODE_ENV === "development") {
-    runValidation()
+    // Run validation but don't block rendering
+    runValidation().catch((err) => {
+      console.error("Validation error:", err)
+    })
   }
+
   return (
     <html lang="en">
       <body className={inter.className}>

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Eye, Filter, Calendar, Edit, Trash2 } from "lucide-react"
+import { Plus, Search, Eye, Filter, Calendar, Edit, Trash2, Loader2, AlertCircle } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { OrderDetailSheet } from "@/components/order-detail-sheet"
 import { NewOrderSheet } from "@/components/new-order-sheet"
@@ -12,6 +12,9 @@ import { useSearchParams } from "next/navigation"
 import { fetchOrders } from "@/lib/api-service"
 import { DataTable, type Column } from "@/app/components/DataTable"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { createOrder, updateOrder, deleteOrder } from "@/app/actions/order-actions"
+import { logger } from "@/lib/logger"
 import type { Order } from "@/types"
 
 export default function OrdersPage() {
@@ -27,12 +30,16 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("pending")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null)
 
   // Fetch orders
   useEffect(() => {
     async function loadOrders() {
       try {
         setLoading(true)
+        setError(null)
         const data = await fetchOrders()
 
         // Calculate days to due for each order
@@ -53,6 +60,7 @@ export default function OrdersPage() {
       } catch (err) {
         console.error("Failed to fetch orders:", err)
         setError("Failed to load orders. Please try again.")
+        logger.error("Failed to fetch orders", { error: err })
       } finally {
         setLoading(false)
       }
@@ -90,21 +98,91 @@ export default function OrdersPage() {
     }
   }
 
-  const handleOrderCreated = (order: Order) => {
-    // Check if this is an update to an existing order
-    const existingIndex = orders.findIndex((o) => o.id === order.id)
+  const handleOrderCreated = async (order: Order) => {
+    setIsSubmitting(true)
+    setActionError(null)
+    setActionSuccess(null)
 
-    if (existingIndex >= 0) {
-      // Update existing order
-      const updatedOrders = [...orders]
-      updatedOrders[existingIndex] = order
-      setOrders(updatedOrders)
-    } else {
-      // Add new order
-      setOrders((prevOrders) => [...prevOrders, order])
+    try {
+      // Check if this is an update to an existing order
+      const existingIndex = orders.findIndex((o) => o.id === order.id)
+      const isUpdate = existingIndex >= 0
+
+      // Call the appropriate server action
+      const result = isUpdate ? await updateOrder(order) : await createOrder(order)
+
+      if (!result.success) {
+        setActionError(result.error || "Failed to save order")
+        logger.error(`Failed to ${isUpdate ? "update" : "create"} order`, {
+          data: { orderId: order.id },
+          error: result.error,
+        })
+        return
+      }
+
+      // Update local state
+      if (isUpdate) {
+        // Update existing order
+        const updatedOrders = [...orders]
+        updatedOrders[existingIndex] = order
+        setOrders(updatedOrders)
+        setActionSuccess(`Order ${order.id} updated successfully`)
+      } else {
+        // For new orders, use the server-generated ID
+        const newOrder = {
+          ...order,
+          id: result.orderId, // Use the server-generated ID
+        }
+        setOrders((prevOrders) => [...prevOrders, newOrder])
+        setActionSuccess(`Order ${result.orderId} created successfully`)
+      }
+
+      setNewOrderOpen(false)
+      setEditOrder(null)
+    } catch (err) {
+      setActionError("An unexpected error occurred")
+      logger.error(`Unexpected error in handleOrderCreated`, {
+        data: { orderId: order.id },
+        error: err,
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!confirm(`Are you sure you want to delete order ${orderId}?`)) {
+      return
     }
 
-    setEditOrder(null)
+    setIsSubmitting(true)
+    setActionError(null)
+    setActionSuccess(null)
+
+    try {
+      const result = await deleteOrder(orderId)
+
+      if (!result.success) {
+        setActionError(result.error || "Failed to delete order")
+        logger.error("Failed to delete order", {
+          data: { orderId },
+          error: result.error,
+        })
+        return
+      }
+
+      // Remove from local state
+      setOrders((prevOrders) => prevOrders.filter((o) => o.id !== orderId))
+      setActionSuccess(`Order ${orderId} deleted successfully`)
+    } catch (err) {
+      setActionError("An unexpected error occurred")
+      logger.error("Unexpected error in handleDeleteOrder", {
+        data: { orderId },
+        error: err,
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // Define columns for the DataTable
@@ -115,42 +193,15 @@ export default function OrdersPage() {
       className: "font-medium",
     },
     {
+      header: "Order Type",
+      accessor: "orderType",
+      render: (row) => <div>{row.orderType || "-"}</div>,
+    },
+    {
       header: "Jobs",
       accessor: "skus",
       render: (row) => (
         <div className="text-center font-medium">{row.skus.reduce((total, sku) => total + sku.quantity, 0)}</div>
-      ),
-    },
-    {
-      header: "Days to Due",
-      accessor: "daysToDue",
-      render: (row) => (
-        <Badge
-          variant={
-            row.status === "Draft"
-              ? "outline"
-              : row.daysToDue <= 3
-                ? "destructive"
-                : row.daysToDue <= 7
-                  ? "secondary"
-                  : "outline"
-          }
-        >
-          {row.status === "Draft" ? "Draft" : `${row.daysToDue} days`}
-        </Badge>
-      ),
-    },
-    {
-      header: "Delivery Date",
-      accessor: "dueDate",
-      render: (row) => (
-        <>
-          {row.dueDate
-            ? new Date(row.dueDate).toLocaleDateString()
-            : row.deliveryDate
-              ? new Date(row.deliveryDate).toLocaleDateString()
-              : "-"}
-        </>
       ),
     },
     {
@@ -162,6 +213,19 @@ export default function OrdersPage() {
             ? new Date(row.productionDate).toLocaleDateString()
             : row.productionDueDate
               ? new Date(row.productionDueDate).toLocaleDateString()
+              : "-"}
+        </>
+      ),
+    },
+    {
+      header: "Delivery Date",
+      accessor: "dueDate",
+      render: (row) => (
+        <>
+          {row.dueDate
+            ? new Date(row.dueDate).toLocaleDateString()
+            : row.deliveryDate
+              ? new Date(row.deliveryDate).toLocaleDateString()
               : "-"}
         </>
       ),
@@ -199,6 +263,7 @@ export default function OrdersPage() {
               e.stopPropagation()
               handleEditOrder(row.id)
             }}
+            disabled={isSubmitting}
           >
             <Edit className="h-4 w-4" />
             <span className="text-[10px]">Edit</span>
@@ -215,6 +280,7 @@ export default function OrdersPage() {
                 handleOrderClick(row.id)
               }
             }}
+            disabled={isSubmitting}
           >
             {row.status === "Draft" ? (
               <>
@@ -234,9 +300,9 @@ export default function OrdersPage() {
             className="flex flex-col items-center gap-1 text-red-500 hover:text-red-600"
             onClick={(e) => {
               e.stopPropagation()
-              // Delete functionality would go here
-              alert(`Delete order ${row.id}?`)
+              handleDeleteOrder(row.id)
             }}
+            disabled={isSubmitting}
           >
             <Trash2 className="h-4 w-4" />
             <span className="text-[10px]">Delete</span>
@@ -259,6 +325,8 @@ export default function OrdersPage() {
   // Mock refresh function
   const handleRefresh = () => {
     setLoading(true)
+    setError(null)
+    setActionError(null)
     // Fetch orders again
     fetchOrders()
       .then((data) => {
@@ -281,6 +349,7 @@ export default function OrdersPage() {
       .catch((err) => {
         console.error("Failed to refresh orders:", err)
         setError("Failed to refresh orders. Please try again.")
+        logger.error("Failed to refresh orders", { error: err })
       })
       .finally(() => {
         setLoading(false)
@@ -302,6 +371,16 @@ export default function OrdersPage() {
     setCurrentPage(1)
   }, [activeTab])
 
+  // Clear success message after 5 seconds
+  useEffect(() => {
+    if (actionSuccess) {
+      const timer = setTimeout(() => {
+        setActionSuccess(null)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [actionSuccess])
+
   return (
     <div className="flex flex-col">
       <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-muted/40 px-6">
@@ -312,38 +391,29 @@ export default function OrdersPage() {
               setEditOrder(null)
               setNewOrderOpen(true)
             }}
+            disabled={isSubmitting}
           >
-            <Plus className="mr-2 h-4 w-4" />
+            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
             New Order
           </Button>
         </div>
       </header>
 
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        {actionError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{actionError}</AlertDescription>
+          </Alert>
+        )}
+
+        {actionSuccess && (
+          <Alert variant="success" className="mb-4 bg-green-50 text-green-800 border-green-200">
+            <AlertDescription>{actionSuccess}</AlertDescription>
+          </Alert>
+        )}
+
         <div className="flex flex-col gap-4">
-          <div className="border border-gray-200 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] p-6 rounded-lg">
-            <h2 className="text-lg font-semibold mb-2">Order Highlights</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white p-4 rounded-lg border shadow-sm">
-                <div className="text-sm text-gray-500">Orders due soon or overdue</div>
-                <div className="text-2xl font-bold mt-1">{orders.filter((order) => order.daysToDue <= 7).length}</div>
-              </div>
-              <div className="bg-white p-4 rounded-lg border shadow-sm">
-                <div className="text-sm text-gray-500">Pending orders</div>
-                <div className="text-2xl font-bold mt-1">
-                  {orders.filter((order) => order.status === "Pending").length}
-                </div>
-              </div>
-              <div className="bg-white p-4 rounded-lg border shadow-sm">
-                <div className="text-sm text-gray-500">Orders created today</div>
-                <div className="text-2xl font-bold mt-1">
-                  {/* Assuming 2 orders created today for demo purposes */}2
-                </div>
-              </div>
-            </div>
-          </div>
-
           <h1 className="text-lg font-semibold mb-2">Order List</h1>
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
@@ -419,6 +489,7 @@ export default function OrdersPage() {
         onOpenChange={setNewOrderOpen}
         onOrderCreated={handleOrderCreated}
         editOrder={editOrder}
+        isSubmitting={isSubmitting}
       />
     </div>
   )

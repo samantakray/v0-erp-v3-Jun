@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Edit, Trash2, Filter } from "lucide-react"
+import { Plus, Search, Edit, Trash2, Filter, AlertCircle } from "lucide-react"
 import Image from "next/image"
 import { useState, useEffect } from "react"
 import { NewSKUSheet } from "@/components/new-sku-sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { fetchSkus } from "@/lib/api-service"
+import { createSku, deleteSku } from "@/app/actions/sku-actions"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import type { SKU } from "@/types"
 
 export default function SKUsPage() {
@@ -21,6 +23,7 @@ export default function SKUsPage() {
   const [skus, setSkus] = useState<SKU[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [actionInProgress, setActionInProgress] = useState(false)
 
   useEffect(() => {
     async function loadSkus() {
@@ -68,9 +71,56 @@ export default function SKUsPage() {
     return true
   })
 
-  const handleSKUCreated = (newSKU) => {
-    // Add the new SKU to the state
-    setSkus((prevSkus) => [...prevSkus, newSKU])
+  const handleSKUCreated = async (newSKU) => {
+    try {
+      setActionInProgress(true)
+
+      // Save to Supabase using server action
+      const result = await createSku(newSKU)
+
+      if (result.success) {
+        // Add the new SKU to the state
+        setSkus((prevSkus) => [
+          ...prevSkus,
+          {
+            ...newSKU,
+            createdAt: new Date().toISOString(),
+          },
+        ])
+      } else {
+        setError(`Failed to create SKU: ${result.error}`)
+        console.error("Failed to create SKU:", result.error)
+      }
+    } catch (err) {
+      setError("An unexpected error occurred while creating the SKU.")
+      console.error("SKU creation error:", err)
+    } finally {
+      setActionInProgress(false)
+    }
+  }
+
+  const handleDeleteSKU = async (skuId) => {
+    if (!confirm("Are you sure you want to delete this SKU?")) return
+
+    try {
+      setActionInProgress(true)
+
+      // Delete from Supabase using server action
+      const result = await deleteSku(skuId)
+
+      if (result.success) {
+        // Remove the SKU from the state
+        setSkus((prevSkus) => prevSkus.filter((sku) => sku.id !== skuId))
+      } else {
+        setError(`Failed to delete SKU: ${result.error}`)
+        console.error("Failed to delete SKU:", result.error)
+      }
+    } catch (err) {
+      setError("An unexpected error occurred while deleting the SKU.")
+      console.error("SKU deletion error:", err)
+    } finally {
+      setActionInProgress(false)
+    }
   }
 
   return (
@@ -79,6 +129,13 @@ export default function SKUsPage() {
         <h1 className="text-lg font-semibold">SKU Management</h1>
       </header>
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
             <div className="relative">
@@ -135,7 +192,7 @@ export default function SKUsPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => setNewSKUSheetOpen(true)}>
+            <Button onClick={() => setNewSKUSheetOpen(true)} disabled={actionInProgress}>
               <Plus className="mr-2 h-4 w-4" />
               New SKU
             </Button>
@@ -187,11 +244,16 @@ export default function SKUsPage() {
                       <TableCell>{sku.stoneType === "None" ? "-" : sku.stoneType}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" disabled={actionInProgress}>
                             <Edit className="h-4 w-4" />
                             <span className="sr-only">Edit</span>
                           </Button>
-                          <Button variant="ghost" size="icon">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteSKU(sku.id)}
+                            disabled={actionInProgress}
+                          >
                             <Trash2 className="h-4 w-4" />
                             <span className="sr-only">Delete</span>
                           </Button>

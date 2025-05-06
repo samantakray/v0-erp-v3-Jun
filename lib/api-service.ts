@@ -467,3 +467,99 @@ export async function fetchSkus(): Promise<SKU[]> {
     return []
   }
 }
+
+// Add the following import at the top of the file if there's a mocks/customers.ts file
+// import { customers as mockCustomers } from "@/mocks/customers"
+
+// Add this function after the other fetch functions
+export async function fetchCustomers() {
+  const startTime = performance.now()
+  logger.info(`fetchCustomers called`, { data: { useMocks } })
+
+  if (useMocks) {
+    // Use mock data if available, otherwise return empty array
+    // If you create a mocks/customers.ts file, use that instead
+    const mockCustomers = [
+      {
+        id: "1",
+        name: "Mock Customer 1",
+        contact_person: "Contact Person 1",
+        email: "contact1@example.com",
+        phone: "1234567890",
+      },
+      {
+        id: "2",
+        name: "Mock Customer 2",
+        contact_person: "Contact Person 2",
+        email: "contact2@example.com",
+        phone: "0987654321",
+      },
+    ]
+
+    const duration = performance.now() - startTime
+    logger.info(`fetchCustomers completed with mock data`, {
+      data: { count: mockCustomers.length },
+      duration,
+    })
+    return mockCustomers
+  }
+
+  try {
+    // Get all customers
+    logger.debug(`Fetching customers from Supabase with active=true filter`)
+    const { data, error } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("active", true)
+      .order("name", { ascending: true })
+
+    // Log the raw response for debugging
+    logger.debug(`Supabase customers query response:`, {
+      data: data ? { count: data.length, sample: data.slice(0, 2) } : null,
+      error: error || null,
+    })
+
+    if (error) {
+      const duration = performance.now() - startTime
+      logger.error(`Error fetching customers from Supabase`, {
+        error,
+        duration,
+      })
+      return []
+    }
+
+    // Check if customers are empty
+    if (!data || data.length === 0) {
+      logger.warn(`No customers found in database (active=true filter applied)`)
+
+      // Try without the active filter to see if that's the issue
+      logger.debug(`Trying to fetch customers without active filter for debugging`)
+      const { data: allData, error: allError } = await supabase
+        .from("customers")
+        .select("*")
+        .order("name", { ascending: true })
+
+      logger.debug(`All customers query response:`, {
+        data: allData ? { count: allData.length, sample: allData.slice(0, 2) } : null,
+        error: allError || null,
+      })
+
+      return []
+    }
+
+    const duration = performance.now() - startTime
+    logger.info(`fetchCustomers completed successfully`, {
+      data: { count: data.length, firstCustomer: data[0]?.name },
+      duration,
+    })
+
+    return data
+  } catch (error) {
+    const duration = performance.now() - startTime
+    logger.error(`Unexpected error in fetchCustomers`, {
+      error,
+      duration,
+    })
+    return []
+  }
+}
