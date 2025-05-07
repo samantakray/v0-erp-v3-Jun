@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { JOB_STATUS } from "@/constants/job-workflow"
+import { JOB_STATUS, ORDER_STATUS } from "@/constants/job-workflow"
 
 export function OrderDetailSheet({ orderId, open, onOpenChange, onEdit }) {
   const [order, setOrder] = useState(null)
@@ -71,9 +71,9 @@ export function OrderDetailSheet({ orderId, open, onOpenChange, onEdit }) {
         setCurrentStatus(status)
 
         // Update action based on status
-        if (status === "Completed") {
+        if (status === ORDER_STATUS.COMPLETED) {
           setCurrentAction("Order completed")
-        } else if (status === "Pending") {
+        } else if (status === ORDER_STATUS.PENDING) {
           setCurrentAction("Process remaining jobs")
         } else {
           setCurrentAction("Stone selection")
@@ -130,20 +130,20 @@ export function OrderDetailSheet({ orderId, open, onOpenChange, onEdit }) {
 
   // Determine order status based on job statuses
   const determineOrderStatus = (jobsData) => {
-    if (!jobsData || jobsData.length === 0) return "New"
+    if (!jobsData || jobsData.length === 0) return ORDER_STATUS.NEW
 
     // If all jobs are completed, order is completed
     if (jobsData.every((job) => job.status === JOB_STATUS.COMPLETED)) {
-      return "Completed"
+      return ORDER_STATUS.COMPLETED
     }
 
     // If any job is not "New Job", order is pending
     if (jobsData.some((job) => job.status !== JOB_STATUS.NEW)) {
-      return "Pending"
+      return ORDER_STATUS.PENDING
     }
 
     // Otherwise, order is new
-    return "New"
+    return ORDER_STATUS.NEW
   }
 
   // Filter jobs based on search and filter

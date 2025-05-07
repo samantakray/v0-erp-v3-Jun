@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { logger } from "@/lib/logger"
 import { fetchSkus, fetchCustomers } from "@/lib/api-service"
+import { ORDER_STATUS } from "@/constants/job-workflow"
 
 // Default customer ID for "Exquisite Fine Jewellery" - replace with the actual ID from Phase 1
 const DEFAULT_CUSTOMER_ID = "8505d3dc-97c0-4636-a11d-1c8305ed07ac"
@@ -36,7 +37,7 @@ export function NewOrderSheet({
     customerId: editOrder?.customerId || "", // Add customerId to initial form state
     productionDate: editOrder?.productionDate || "",
     dueDate: editOrder?.dueDate || "",
-    status: editOrder?.status || "New",
+    status: editOrder?.status || ORDER_STATUS.NEW,
     action: editOrder?.action || "View details",
     remarks: editOrder?.remarks || "",
     skus: editOrder?.skus || [],
@@ -398,7 +399,7 @@ export function NewOrderSheet({
       skus: selectedSKUs,
       productionDate: productionDueDate,
       dueDate: deliveryDate,
-      status: isDraft ? "Draft" : "New",
+      status: isDraft ? ORDER_STATUS.DRAFT : ORDER_STATUS.NEW,
       action: isDraft ? "Complete order" : "Stone selection",
       remarks,
       createdAt: new Date().toISOString(),

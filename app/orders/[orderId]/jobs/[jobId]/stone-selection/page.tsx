@@ -65,16 +65,34 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
   const [error, setError] = useState<string | null>(null)
   const firstInputRef = useRef<HTMLInputElement>(null)
 
+  const isValid = allocs.every((a) => a.lot && a.qty > 0 && +a.wt > 0)
+
+  // 2. Check Form Validation
+  console.log("Form data:", allocs)
+  console.log("Is form valid:", isValid)
+  console.log(
+    "Validation check:",
+    allocs.map((a) => ({
+      lot: a.lot,
+      qty: a.qty,
+      wt: a.wt,
+      isValid: a.lot && a.qty > 0 && +a.wt > 0,
+    })),
+  )
+
   const add = () => setAllocs([...allocs, { lot: "", qty: 0, wt: "" }])
   const del = (i: number) => setAllocs(allocs.filter((_, idx) => idx !== i))
   const edit = (i: number, k: string, v: string | number) =>
     setAllocs(allocs.map((r, idx) => (idx === i ? { ...r, [k]: v } : r)))
 
-  const isValid = allocs.every((a) => a.lot && a.qty > 0 && +a.wt > 0)
-
   async function submit(e) {
+    // 1. Add Earlier Logging
+    console.log("Submit function called", { isValid, isSubmitting })
     e.preventDefault()
-    if (!isValid || isSubmitting) return
+    if (!isValid || isSubmitting) {
+      console.log("Submit function early return", { isValid, isSubmitting })
+      return
+    }
 
     setIsSubmitting(true)
     setError(null)
@@ -87,11 +105,21 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
         weight: Number.parseFloat(a.wt),
       }))
 
+      // 1) Pre-call log
+      logger.debug("Calling updateJobPhase", {
+        jobId: params.jobId,
+        phase: JOB_PHASE.STONE,
+        allocationsData,
+      })
+
       // Update job phase using server action
       const result = await updateJobPhase(params.jobId, JOB_PHASE.STONE, {
         allocations: allocationsData,
         timestamp: new Date().toISOString(),
       })
+
+      // 2) Post-call log
+      logger.info("updateJobPhase response", { result })
 
       if (!result.success) {
         throw new Error(result.error || "Failed to update job phase")
@@ -104,7 +132,7 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
       setPreview(true)
     } catch (error) {
       logger.error("Error submitting stone allocation:", {
-        data: { jobId: params.jobId },
+        data: { jobId: params.jobId, allocationsData: allocs.map((a) => ({ lot: a.lot, qty: a.qty, wt: a.wt })) },
         error,
       })
       setError("Failed to submit allocation. Please try again.")
@@ -164,7 +192,7 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
               </Button>
             </div>
             <div className="flex justify-end">
-              <Button type="submit" disabled={!isValid || isSubmitting}>
+              <Button type="submit" disabled={!isValid || isSubmitting} onClick={() => console.log("Button clicked")}>
                 {isSubmitting ? "Submitting..." : "Submit Allocation"}
               </Button>
             </div>

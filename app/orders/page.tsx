@@ -16,6 +16,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { createOrder, updateOrder, deleteOrder } from "@/app/actions/order-actions"
 import { logger } from "@/lib/logger"
 import type { Order } from "@/types"
+import { ORDER_STATUS } from "@/constants/job-workflow"
 
 export default function OrdersPage() {
   const searchParams = useSearchParams()
@@ -236,11 +237,11 @@ export default function OrdersPage() {
       render: (row) => (
         <Badge
           className={
-            row.status === "Completed"
+            row.status === ORDER_STATUS.COMPLETED
               ? "bg-green-500 hover:bg-green-600 text-white"
-              : row.status === "Pending"
+              : row.status === ORDER_STATUS.PENDING
                 ? "bg-white border-2 border-yellow-400 text-yellow-600"
-                : row.status === "Draft"
+                : row.status === ORDER_STATUS.DRAFT
                   ? "bg-black hover:bg-gray-800 text-white"
                   : "bg-white border-2 border-gray-300 text-gray-600"
           }
@@ -315,9 +316,9 @@ export default function OrdersPage() {
   // Filter orders based on active tab
   const filteredOrders = orders.filter((order) => {
     if (activeTab === "pending") {
-      return ["New", "Pending", "Draft"].includes(order.status)
+      return [ORDER_STATUS.NEW, ORDER_STATUS.PENDING, ORDER_STATUS.DRAFT].includes(order.status)
     } else if (activeTab === "completed") {
-      return order.status === "Completed"
+      return order.status === ORDER_STATUS.COMPLETED
     }
     return true
   })

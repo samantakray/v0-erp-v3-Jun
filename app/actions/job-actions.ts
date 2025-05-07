@@ -50,6 +50,13 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
       .eq("job_id", jobId)
       .single()
 
+    // Add detailed logging to see if jobData is null or undefined
+    logger.debug("Job data from query", {
+      jobData: jobData || "No job data found",
+      jobId,
+      error: jobError ? { message: jobError.message, code: jobError.code, details: jobError.details } : null,
+    })
+
     if (jobError) {
       const duration = performance.now() - startTime
       logger.error(`Error fetching job from Supabase`, {
@@ -122,16 +129,34 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
       },
     })
 
-    const { error: updateError } = await supabase.from("jobs").update(updateData).eq("id", jobData.id)
+    // 1. Wrap in try/catch to catch thrown exceptions
+    try {
+      // 2. Ask Supabase to return the updated rows
+      const { data: updatedRows, error: updateError } = await supabase
+        .from("jobs")
+        .update(updateData)
+        .eq("id", jobData.id)
+        .select() // ← new
 
-    if (updateError) {
-      const duration = performance.now() - startTime
-      logger.error(`Error updating job in Supabase`, {
-        data: { jobId: jobData.id, newStatus, newPhase },
-        error: updateError,
-        duration,
-      })
-      return { success: false, error: "Failed to update job" }
+      if (updateError) {
+        // 3. Log full error object
+        logger.error("Failed to write to jobs table", {
+          jobId: jobData.id,
+          updateData,
+          error: updateError,
+        })
+        return { success: false, error: "Failed to update job" }
+      } else {
+        // 4. Log the returned rows to confirm what was written
+        logger.info("Wrote to jobs table successfully", {
+          jobId: jobData.id,
+          updatedRows, // ← new
+        })
+      }
+    } catch (err) {
+      // 5. Catch and log any unexpected exception
+      logger.error("Supabase.update() threw an exception", { err })
+      throw err
     }
 
     // Add entry to job history

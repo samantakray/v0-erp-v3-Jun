@@ -4,7 +4,7 @@ import { createServiceClient } from "@/lib/supabaseClient"
 import { logger } from "@/lib/logger"
 import { revalidatePath } from "next/cache"
 import type { Order } from "@/types"
-import { JOB_STATUS, JOB_PHASE } from "@/constants/job-workflow"
+import { JOB_STATUS, JOB_PHASE, ORDER_STATUS } from "@/constants/job-workflow"
 
 export async function createOrder(orderData: Omit<Order, "id">) {
   const startTime = performance.now()
@@ -37,7 +37,7 @@ export async function createOrder(orderData: Omit<Order, "id">) {
         customer_id: orderData.customerId,
         production_date: orderData.productionDate,
         delivery_date: orderData.dueDate,
-        status: orderData.status,
+        status: orderData.status || ORDER_STATUS.NEW,
         action: orderData.action,
         remarks: orderData.remarks,
         created_at: orderData.createdAt || new Date().toISOString(),

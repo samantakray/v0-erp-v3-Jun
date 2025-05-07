@@ -14,6 +14,16 @@ export const JOB_STATUS = {
 
 export type JobStatus = (typeof JOB_STATUS)[keyof typeof JOB_STATUS]
 
+// Order statuses - Adding this new section
+export const ORDER_STATUS = {
+  NEW: "New",
+  PENDING: "Pending",
+  COMPLETED: "Completed",
+  DRAFT: "Draft",
+} as const
+
+export type OrderStatus = (typeof ORDER_STATUS)[keyof typeof ORDER_STATUS]
+
 // Job phases
 export const JOB_PHASE = {
   STONE: "stone",
@@ -37,6 +47,20 @@ export const STATUS_TO_PHASE: Record<JobStatus, JobPhase> = {
   [JOB_STATUS.QC_PASSED]: JOB_PHASE.COMPLETE,
   [JOB_STATUS.QC_FAILED]: JOB_PHASE.MANUFACTURER,
   [JOB_STATUS.COMPLETED]: JOB_PHASE.COMPLETE,
+}
+
+// NEW: Job status to order status mapping
+export const JOB_STATUS_TO_ORDER_STATUS: Record<JobStatus, OrderStatus> = {
+  [JOB_STATUS.NEW]: ORDER_STATUS.NEW,
+  [JOB_STATUS.BAG_CREATED]: ORDER_STATUS.PENDING,
+  [JOB_STATUS.STONE_SELECTED]: ORDER_STATUS.PENDING,
+  [JOB_STATUS.DIAMOND_SELECTED]: ORDER_STATUS.PENDING,
+  [JOB_STATUS.SENT_TO_MANUFACTURER]: ORDER_STATUS.PENDING,
+  [JOB_STATUS.IN_PRODUCTION]: ORDER_STATUS.PENDING,
+  [JOB_STATUS.RECEIVED_FROM_MANUFACTURER]: ORDER_STATUS.PENDING,
+  [JOB_STATUS.QC_PASSED]: ORDER_STATUS.PENDING,
+  [JOB_STATUS.QC_FAILED]: ORDER_STATUS.PENDING,
+  [JOB_STATUS.COMPLETED]: ORDER_STATUS.COMPLETED,
 }
 
 // Phase display information
