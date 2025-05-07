@@ -3,7 +3,7 @@
 import { createServiceClient } from "@/lib/supabaseClient"
 import { logger } from "@/lib/logger"
 import { revalidatePath } from "next/cache"
-import { JOB_STATUS, JOB_PHASE } from "@/constants/job-workflow"
+import { JOB_STATUS, JOB_PHASE, JOB_STATUS_TO_ORDER_STATUS, ORDER_STATUS } from "@/constants/job-workflow"
 
 // Type definitions for action parameters
 type StoneSelectionData = {
@@ -179,6 +179,61 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
       })
     }
 
+    // NEW CODE: Update parent order status based on job statuses
+    logger.debug(`Updating parent order status`, {
+      data: { orderId: jobData.order_id },
+    })
+
+    // Fetch all jobs for this order
+    const { data: orderJobs, error: jobsError } = await supabase
+      .from("jobs")
+      .select("status")
+      .eq("order_id", jobData.order_id)
+
+    if (jobsError) {
+      logger.warn(`Error fetching jobs for order status update`, {
+        data: { orderId: jobData.order_id },
+        error: jobsError,
+      })
+    } else {
+      // Determine new order status based on job statuses
+      let newOrderStatus = ORDER_STATUS.NEW
+
+      // Check if any job is completed
+      const allJobsCompleted = orderJobs.every((job) => job.status === JOB_STATUS.COMPLETED)
+      if (allJobsCompleted && orderJobs.length > 0) {
+        newOrderStatus = ORDER_STATUS.COMPLETED
+      }
+      // Check if any job has a status that maps to PENDING
+      else if (orderJobs.some((job) => JOB_STATUS_TO_ORDER_STATUS[job.status] === ORDER_STATUS.PENDING)) {
+        newOrderStatus = ORDER_STATUS.PENDING
+      }
+
+      // Update the order status
+      logger.debug(`Setting order status to ${newOrderStatus}`, {
+        data: { orderId: jobData.order_id, newOrderStatus },
+      })
+
+      const { error: orderUpdateError } = await supabase
+        .from("orders")
+        .update({
+          status: newOrderStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", jobData.order_id)
+
+      if (orderUpdateError) {
+        logger.warn(`Error updating order status`, {
+          data: { orderId: jobData.order_id },
+          error: orderUpdateError,
+        })
+      } else {
+        logger.info(`Order status updated successfully to ${newOrderStatus}`, {
+          data: { orderId: jobData.order_id },
+        })
+      }
+    }
+
     // Get order_id for revalidation
     logger.debug(`Fetching order_id for revalidation`, {
       data: { orderId: jobData.order_id },
@@ -189,6 +244,7 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
     // Revalidate paths
     revalidatePath(`/orders/${orderData.order_id}/jobs/${jobId}`)
     revalidatePath(`/orders/${orderData.order_id}/jobs`)
+    revalidatePath(`/orders`) // Also revalidate the orders list page
 
     const duration = performance.now() - startTime
     logger.info(`updateJobPhase completed successfully`, {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useJob } from "../layout"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import PhaseNavigation from "../components/phase-navigation"
 import { JOB_PHASE } from "@/constants/job-workflow"
 import { updateJobPhase } from "@/app/actions/job-actions"
 import { logger } from "@/lib/logger"
+import { supabase } from "@/lib/supabaseClient"
 
 // LotRow Component
 interface LotRowProps {
@@ -64,8 +65,48 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const firstInputRef = useRef<HTMLInputElement>(null)
+  const [jobData, setJobData] = useState(null)
 
   const isValid = allocs.every((a) => a.lot && a.qty > 0 && +a.wt > 0)
+
+  // Add direct Supabase check on component mount
+  useEffect(() => {
+    async function checkJobDirectly() {
+      console.log("Directly checking job in Supabase:", params.jobId)
+
+      try {
+        // First, try to get the job directly using job_id
+        const { data: directJobData, error: directError } = await supabase
+          .from("jobs")
+          .select("*")
+          .eq("job_id", params.jobId)
+          .single()
+
+        console.log("Direct job query result:", {
+          found: !!directJobData,
+          error: directError ? directError.message : null,
+          data: directJobData,
+        })
+
+        setJobData(directJobData)
+
+        // If that fails, try to get all jobs to see what's available
+        if (!directJobData || directError) {
+          const { data: allJobs, error: allJobsError } = await supabase.from("jobs").select("job_id").limit(20)
+
+          console.log("All jobs query result:", {
+            count: allJobs?.length || 0,
+            error: allJobsError ? allJobsError.message : null,
+            jobIds: allJobs?.map((j) => j.job_id),
+          })
+        }
+      } catch (e) {
+        console.error("Error in direct Supabase check:", e)
+      }
+    }
+
+    checkJobDirectly()
+  }, [params.jobId])
 
   // 2. Check Form Validation
   console.log("Form data:", allocs)
@@ -87,7 +128,7 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
 
   async function submit(e) {
     // 1. Add Earlier Logging
-    console.log("Submit function called", { isValid, isSubmitting })
+    console.log("Submit function called", { isValid, isSubmitting, jobId: params.jobId })
     e.preventDefault()
     if (!isValid || isSubmitting) {
       console.log("Submit function early return", { isValid, isSubmitting })
@@ -104,6 +145,49 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
         quantity: a.qty,
         weight: Number.parseFloat(a.wt),
       }))
+
+      // Direct Supabase check before calling server action
+      console.log("Checking job directly before update:", params.jobId)
+      const { data: preCheckData, error: preCheckError } = await supabase
+        .from("jobs")
+        .select("id")
+        .eq("job_id", params.jobId)
+        .single()
+
+      console.log("Pre-update job check:", {
+        found: !!preCheckData,
+        error: preCheckError ? preCheckError.message : null,
+        data: preCheckData,
+      })
+
+      if (preCheckData && preCheckData.id) {
+        console.log("Found job UUID:", preCheckData.id)
+
+        // Try direct update with Supabase client
+        const updateData = {
+          status: "Stone Selected",
+          current_phase: "diamond",
+          stone_data: {
+            allocations: allocationsData,
+            timestamp: new Date().toISOString(),
+          },
+          updated_at: new Date().toISOString(),
+        }
+
+        console.log("Attempting direct update with data:", updateData)
+
+        const { data: directUpdateData, error: directUpdateError } = await supabase
+          .from("jobs")
+          .update(updateData)
+          .eq("id", preCheckData.id)
+          .select()
+
+        console.log("Direct update result:", {
+          success: !!directUpdateData,
+          error: directUpdateError ? directUpdateError.message : null,
+          data: directUpdateData,
+        })
+      }
 
       // 1) Pre-call log
       logger.debug("Calling updateJobPhase", {
@@ -131,6 +215,7 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
       )
       setPreview(true)
     } catch (error) {
+      console.error("Full error object:", error)
       logger.error("Error submitting stone allocation:", {
         data: { jobId: params.jobId, allocationsData: allocs.map((a) => ({ lot: a.lot, qty: a.qty, wt: a.wt })) },
         error,
@@ -157,6 +242,22 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
     <div className="space-y-6">
       <JobHeader orderId={params.orderId} />
       <PhaseNavigation orderId={params.orderId} jobId={params.jobId} />
+
+      {/* Add job data display */}
+      <Card className="bg-yellow-50">
+        <CardContent className="pt-6">
+          <h3 className="font-medium mb-2">Debug Information</h3>
+          <div className="text-sm">
+            <p>Job ID: {params.jobId}</p>
+            <p>Job Data Found: {jobData ? "Yes" : "No"}</p>
+            {jobData && (
+              <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto">
+                {JSON.stringify(jobData, null, 2)}
+              </pre>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
