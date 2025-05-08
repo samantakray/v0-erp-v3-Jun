@@ -35,9 +35,9 @@ export const GOLD_TYPE = {
 
 // Gold type codes for reference (not stored in database)
 export const GOLD_TYPE_CODES = {
-  [GOLD_TYPE.YELLOW_GOLD]: "YG",
-  [GOLD_TYPE.WHITE_GOLD]: "WG",
-  [GOLD_TYPE.ROSE_GOLD]: "RG",
+  [GOLD_TYPE.YELLOW_GOLD]: "18KYG",
+  [GOLD_TYPE.WHITE_GOLD]: "18KWG",
+  [GOLD_TYPE.ROSE_GOLD]: "18KRG",
 } as const
 
 export type GoldType = (typeof GOLD_TYPE)[keyof typeof GOLD_TYPE]
@@ -122,9 +122,9 @@ export const STONE_TYPE = {
   CATS_EYE: "Cats Eye",
   ETY_TURQULOIS: "Ety Turqulois",
   MADEIRA_CITRINE: "Madeira Citrine",
-  RUBIES: "Rubies", // Keep existing options
-  EMERALDS: "Emeralds", // Keep existing options
-  SAPPHIRES: "Sapphires", // Keep existing options
+  RUBY: "Ruby", // Keep existing options
+  EMERALD: "Emerald", // Keep existing options
+  SAPPHIRE: "Sapphire", // Keep existing options
 } as const
 
 // Stone type codes for reference (not stored in database)
@@ -207,9 +207,9 @@ export const STONE_TYPE_CODES = {
   [STONE_TYPE.CATS_EYE]: "CE",
   [STONE_TYPE.ETY_TURQULOIS]: "STQ",
   [STONE_TYPE.MADEIRA_CITRINE]: "MCI",
-  [STONE_TYPE.RUBIES]: "RB", // Added code for existing options
-  [STONE_TYPE.EMERALDS]: "EM", // Added code for existing options
-  [STONE_TYPE.SAPPHIRES]: "SP", // Added code for existing options
+  [STONE_TYPE.RUBY]: "RB", // Added code for existing options
+  [STONE_TYPE.EMERALD]: "EM", // Added code for existing options
+  [STONE_TYPE.SAPPHIRE]: "SP", // Added code for existing options
 } as const
 
 export type StoneType = (typeof STONE_TYPE)[keyof typeof STONE_TYPE]
@@ -230,6 +230,23 @@ export const CATEGORY_CODES: Record<SkuCategory, string> = {
   [SKU_CATEGORY.TYRE]: "TY",
   [SKU_CATEGORY.KADI]: "EX", // Using EX as per database function
   [SKU_CATEGORY.EARRING_PART]: "EX", // Using EX as per database function
+}
+
+/**
+ * Get the category code for a given category name string
+ * @param categoryName The category name (e.g., "Ring", "Necklace")
+ * @returns The category code (e.g., "RG", "NK") or "OO" if not found
+ */
+export function getCategoryCode(categoryName: string): string {
+  // Direct lookup for exact matches
+  for (const [key, value] of Object.entries(SKU_CATEGORY)) {
+    if (value === categoryName) {
+      return CATEGORY_CODES[value]
+    }
+  }
+
+  // Default fallback
+  return "OO"
 }
 
 // Default sizes for each category - now using a partial record

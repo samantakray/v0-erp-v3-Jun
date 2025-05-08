@@ -1,6 +1,5 @@
 // ./lib/api-service.ts
 
-
 import { supabase } from "./supabaseClient"
 import { logger } from "./logger"
 import type { Order, SKU, Job } from "@/types"
@@ -442,14 +441,24 @@ export async function fetchSkus(): Promise<SKU[]> {
       logger.info(`No SKUs found in database`)
     }
 
+    // Log a sample of the raw data to debug
+    if (data.length > 0) {
+      logger.debug(`Sample SKU data from database:`, {
+        sample: data[0],
+      })
+    }
+
     // Format SKUs
     const skus = data.map((sku) => ({
       id: sku.sku_id,
       name: sku.name,
       category: sku.category,
+      collection: sku.collection,
+      size: sku.size !== null && sku.size !== undefined ? Number(sku.size) : null,
       goldType: sku.gold_type,
       stoneType: sku.stone_type,
       diamondType: sku.diamond_type,
+      weight: sku.weight,
       image: sku.image_url,
       createdAt: sku.created_at,
     }))

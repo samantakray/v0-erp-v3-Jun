@@ -3,13 +3,11 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { X } from "lucide-react"
+import { X, Loader2 } from "lucide-react"
 import {
   SKU_CATEGORY,
   COLLECTION_NAME,
@@ -20,18 +18,23 @@ import {
   MAX_SIZES,
   SIZE_DENOMINATIONS,
   SIZE_UNITS,
+  getCategoryCode,
 } from "@/constants/categories"
+import { getNextSkuNumber, createSkuBatch } from "@/app/actions/sku-sequence-actions"
 
 export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
-  const [createMultiple, setCreateMultiple] = useState(true)
-  const [showPreview, setShowPreview] = useState(false)
   const [multipleSkus, setMultipleSkus] = useState([])
+  const [nextSequentialNumber, setNextSequentialNumber] = useState(null)
+  const [formattedNumber, setFormattedNumber] = useState(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
 
-  // Initialize the SKU variants when the sheet is opened
+  // Initialize the SKU variants and fetch the next sequential number when the sheet is opened
   useEffect(() => {
     if (open) {
-      setCreateMultiple(true)
-      setShowPreview(false)
+      setError(null)
+
+      // Initialize with default SKU
       setMultipleSkus([
         {
           category: "Necklace",
@@ -44,8 +47,30 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
           image: null,
         },
       ])
+
+      // Fetch the next sequential number
+      fetchNextSequentialNumber()
     }
   }, [open])
+
+  // Fetch the next sequential number from the server
+  const fetchNextSequentialNumber = async () => {
+    setIsLoading(true)
+    try {
+      const result = await getNextSkuNumber()
+      if (result.success) {
+        setNextSequentialNumber(result.nextNumber)
+        setFormattedNumber(result.formattedNumber)
+      } else {
+        setError(result.error || "Failed to fetch next SKU number")
+      }
+    } catch (err) {
+      setError("An unexpected error occurred while fetching the next SKU number")
+      console.error(err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleImageChange = (e, index = null) => {
     if (e.target.files && e.target.files[0]) {
@@ -58,66 +83,69 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
     }
   }
 
-  const handleCreateSKU = () => {
-    if (!createMultiple) {
-      // For single SKU creation
-      const firstSku = multipleSkus[0]
-      const newSKU = {
-        name: `${firstSku.goldType} ${firstSku.category}${firstSku.stoneType !== STONE_TYPE.NONE ? ` with ${firstSku.stoneType}` : ""}`,
-        category: firstSku.category,
-        collection: firstSku.collection,
-        size: Number(firstSku.size), // Convert to number
-        goldType: firstSku.goldType,
-        stoneType: firstSku.stoneType,
-        diamondType: firstSku.diamondType,
-        weight: firstSku.weight,
-        image: firstSku.image ? URL.createObjectURL(firstSku.image) : "/placeholder.svg?height=80&width=80",
-      }
-
-      onSKUCreated(newSKU)
-      onOpenChange(false)
-    } else {
-      // For multiple SKU creation, show preview first
-      setShowPreview(true)
-    }
+  // Generate SKU ID preview based on category and sequential number
+  const generateSkuIdPreview = (category) => {
+    if (!formattedNumber) return "Generating..."
+    // Use the helper function from constants/categories.ts
+    const prefix = getCategoryCode(category) || "OO" // Default to "OO" if category not found
+    return `${prefix}-${formattedNumber}`
   }
 
-  const handleConfirmMultiple = () => {
-    // Create all SKUs
-    if (createMultiple && multipleSkus.length > 0) {
-      multipleSkus.forEach((sku) => {
-        const newSKU = {
-          name: `${sku.goldType} ${sku.category}${sku.stoneType !== STONE_TYPE.NONE ? ` with ${sku.stoneType}` : ""}`,
-          category: sku.category,
-          collection: sku.collection,
-          size: Number(sku.size), // Convert to number
-          goldType: sku.goldType,
-          stoneType: sku.stoneType,
-          diamondType: sku.diamondType,
-          weight: sku.weight,
-          image: sku.image ? URL.createObjectURL(sku.image) : "/placeholder.svg?height=80&width=80",
-        }
-
-        onSKUCreated(newSKU)
-      })
-    } else {
-      const firstSku = multipleSkus[0]
-      const newSKU = {
-        name: `${firstSku.goldType} ${firstSku.category}${firstSku.stoneType !== STONE_TYPE.NONE ? ` with ${firstSku.stoneType}` : ""}`,
-        category: firstSku.category,
-        collection: firstSku.collection,
-        size: Number(firstSku.size), // Convert to number
-        goldType: firstSku.goldType,
-        stoneType: firstSku.stoneType,
-        diamondType: firstSku.diamondType,
-        weight: firstSku.weight,
-        image: firstSku.image ? URL.createObjectURL(firstSku.image) : "/placeholder.svg?height=80&width=80",
-      }
-
-      onSKUCreated(newSKU)
+  const handleCreateSkusBatch = async () => {
+    if (multipleSkus.length === 0 || !formattedNumber) {
+      setError("Cannot create SKUs: No variants or sequential number not fetched.")
+      return
     }
 
-    onOpenChange(false)
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      // Prepare SKUs with generated SKU IDs
+      const skusToCreate = multipleSkus.map((sku) => ({
+        skuId: generateSkuIdPreview(sku.category),
+        name: `${sku.goldType} ${sku.category}${sku.stoneType !== STONE_TYPE.NONE ? ` with ${sku.stoneType}` : ""}`,
+        category: sku.category,
+        collection: sku.collection,
+        size: Number(sku.size), // Convert to number
+        goldType: sku.goldType,
+        stoneType: sku.stoneType,
+        diamondType: sku.diamondType,
+        weight: sku.weight,
+        image: sku.image ? URL.createObjectURL(sku.image) : "/placeholder.svg?height=80&width=80",
+      }))
+
+      // Add logging statement to verify frontend data
+      console.log("Sending to backend:", skusToCreate)
+
+      // Call the batch insertion server action
+      const backendResponse = await createSkuBatch(skusToCreate)
+
+      if (backendResponse.success && backendResponse.skus) {
+        console.log("SkuIDs inserted successfully via batch action!", backendResponse.skus)
+
+        // --- CRITICAL CHANGE HERE ---
+        // ONLY update the parent component's state.
+        // DO NOT call createSku here.
+        backendResponse.skus.forEach((insertedSku) => {
+          // Pass the full data returned from the backend (including the db 'id', 'created_at', etc.)
+          // if the parent component needs it.
+          onSKUCreated(insertedSku)
+        })
+        // --- END CRITICAL CHANGE ---
+
+        onOpenChange(false) // Close the sheet
+      } else {
+        // Handle backend insertion errors
+        console.error("Error creating SkuID batch:", backendResponse.error)
+        setError(backendResponse.error || "Failed to create SKUs batch")
+      }
+    } catch (err) {
+      setError("An unexpected error occurred while creating SKUs")
+      console.error(err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   // Helper function to get size constraints for a category
@@ -151,25 +179,35 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
         </SheetHeader>
 
         <div className="py-4">
-          {!showPreview ? (
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {isLoading && (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2">Loading...</span>
+            </div>
+          )}
+
+          {!isLoading && (
             <div className="space-y-4">
               <Alert className="bg-blue-50">
                 <AlertTitle>SKU ID Generation</AlertTitle>
                 <AlertDescription>
-                  SKU IDs will be automatically generated by the system when the SKU is created based on the category.
+                  {nextSequentialNumber ? (
+                    <>
+                      All SKUs in this batch will share the sequential number <strong>{formattedNumber}</strong>. The
+                      full SKU ID will be generated based on the category (e.g., RG-{formattedNumber} for Ring).
+                    </>
+                  ) : (
+                    "Loading next sequential number..."
+                  )}
                 </AlertDescription>
               </Alert>
-
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="createMultiple"
-                    checked={createMultiple}
-                    onCheckedChange={(checked) => setCreateMultiple(checked === true)}
-                  />
-                  <Label htmlFor="createMultiple">Create multiple SKU categories</Label>
-                </div>
-              </div>
 
               <div className="space-y-4">
                 {multipleSkus.length > 0 ? (
@@ -177,7 +215,8 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[50px]">No.</TableHead>
+                          <TableHead>No.</TableHead>
+                          <TableHead>SKU ID Preview</TableHead>
                           <TableHead>Category</TableHead>
                           <TableHead>Collection</TableHead>
                           <TableHead>Size</TableHead>
@@ -195,6 +234,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                           return (
                             <TableRow key={index}>
                               <TableCell>{index + 1}</TableCell>
+                              <TableCell className="font-mono">{generateSkuIdPreview(sku.category)}</TableCell>
                               <TableCell>
                                 <Select
                                   value={sku.category}
@@ -339,7 +379,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                                     newSkus.splice(index, 1)
                                     setMultipleSkus(newSkus)
                                   }}
-                                  disabled={(!createMultiple && index === 0) || multipleSkus.length <= 1}
+                                  disabled={multipleSkus.length <= 1}
                                 >
                                   <X className="h-4 w-4" />
                                 </Button>
@@ -375,70 +415,30 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                         },
                       ])
                     }}
-                    disabled={!createMultiple}
                   >
                     Add SKU Variant
                   </Button>
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="space-y-4">
-              <Alert>
-                <AlertTitle>Preview Your SKUs</AlertTitle>
-                <AlertDescription>Review the SKUs before creating them</AlertDescription>
-              </Alert>
-
-              <div className="border rounded-md overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Collection</TableHead>
-                      <TableHead>Size</TableHead>
-                      <TableHead>Gold Type</TableHead>
-                      <TableHead>Stone Type</TableHead>
-                      <TableHead>Name</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {multipleSkus.map((sku, index) => {
-                      const { unit } = getSizeConstraints(sku.category)
-                      return (
-                        <TableRow key={index}>
-                          <TableCell>{sku.category}</TableCell>
-                          <TableCell>{sku.collection}</TableCell>
-                          <TableCell>{sku.size ? `${sku.size}${unit ? ` ${unit}` : ""}` : "N/A"}</TableCell>
-                          <TableCell>{sku.goldType}</TableCell>
-                          <TableCell>{sku.stoneType}</TableCell>
-                          <TableCell>
-                            {`${sku.goldType} ${sku.category}${sku.stoneType !== STONE_TYPE.NONE ? ` with ${sku.stoneType}` : ""}`}
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
           )}
         </div>
 
         <SheetFooter className="mt-6">
-          {!showPreview ? (
-            <Button onClick={handleCreateSKU} disabled={multipleSkus.length === 0} className="w-full">
-              {createMultiple ? "Preview SKUs" : "Create SKU"}
-            </Button>
-          ) : (
-            <div className="w-full space-y-4">
-              <Button variant="outline" onClick={() => setShowPreview(false)} className="w-full">
-                Back to Edit
-              </Button>
-              <Button onClick={handleConfirmMultiple} className="w-full">
-                Confirm & Create SKUs
-              </Button>
-            </div>
-          )}
+          <Button
+            onClick={handleCreateSkusBatch}
+            disabled={multipleSkus.length === 0 || nextSequentialNumber === null || isLoading}
+            className="w-full"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              `Create SKU${multipleSkus.length > 1 ? "s" : ""}`
+            )}
+          </Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>

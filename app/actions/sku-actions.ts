@@ -5,7 +5,14 @@ import { logger } from "@/lib/logger"
 import { revalidatePath } from "next/cache"
 import type { SKU } from "@/types"
 
-export async function createSku(skuData: Omit<SKU, "id" | "createdAt">) {
+/**
+ * Creates a single SKU in the database
+ *
+ * @param skuData The SKU data to create
+ * @param preGeneratedId Optional pre-generated SKU ID. If provided, this ID will be used instead of letting the database generate one.
+ * @returns Object with success status, error message if applicable, and the created SKU
+ */
+export async function createSku(skuData: Omit<SKU, "id" | "createdAt">, preGeneratedId?: string) {
   const startTime = performance.now()
   logger.info(`createSku called`, {
     data: {
@@ -14,6 +21,7 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">) {
       collection: skuData.collection,
       goldType: skuData.goldType,
       stoneType: skuData.stoneType,
+      preGeneratedId: preGeneratedId ? "provided" : "not provided",
     },
   })
 
@@ -23,11 +31,12 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">) {
   try {
     // Format data for Supabase
     const supabaseSkuData = {
-      // No sku_id field - let the database generate it
+      // Only include sku_id if a pre-generated ID is provided
+      ...(preGeneratedId && { sku_id: preGeneratedId }),
       name: skuData.name,
       category: skuData.category,
-      collection: skuData.collection || null, // Add collection field
-      size: skuData.size || null, // This will now be a number or null
+      collection: skuData.collection || null,
+      size: skuData.size || null,
       gold_type: skuData.goldType,
       stone_type: skuData.stoneType,
       diamond_type: skuData.diamondType || null,
@@ -44,6 +53,7 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">) {
         collection: skuData.collection,
         goldType: skuData.goldType,
         stoneType: skuData.stoneType,
+        hasPreGeneratedId: !!preGeneratedId,
       },
     })
 

@@ -3,8 +3,8 @@
 import type React from "react"
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableCaption } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { RefreshCcw, ChevronLeft, ChevronRight } from "lucide-react"
-import { Loader2 } from "lucide-react" // For loading spinner
+import { RefreshCcw, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Loader2 } from 'lucide-react' // For loading spinner
 import { cn } from "@/lib/utils" // Utility for conditional classNames (common in Shadcn/UI)
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -41,8 +41,7 @@ export function DataTable<T extends { id: string }>({
 }: DataTableProps<T>) {
   return (
     <div className="relative w-full rounded-lg border border-gray-200 shadow-sm bg-white">
-      {/* Table Caption */}
-      {caption && <TableCaption className="text-gray-500 text-sm mt-2">{caption}</TableCaption>}
+      {/* Table Caption - MOVED INSIDE TABLE */}
 
       {/* Error Banner */}
       {error && (
@@ -68,6 +67,9 @@ export function DataTable<T extends { id: string }>({
 
       {/* Table */}
       <Table>
+        {/* Caption moved inside Table component where it belongs */}
+        {caption && <TableCaption className="text-gray-500 text-sm mt-2">{caption}</TableCaption>}
+        
         <TableHeader>
           <TableRow className="bg-gray-50">
             {columns.map((col) => (

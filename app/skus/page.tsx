@@ -9,11 +9,11 @@ import { useState, useEffect, useMemo } from "react"
 import { NewSKUSheet } from "@/components/new-sku-sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { fetchSkus } from "@/lib/api-service"
-import { createSku, deleteSku } from "@/app/actions/sku-actions"
+import { deleteSku } from "@/app/actions/sku-actions"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import type { SKU } from "@/types"
 import { DataTable, type Column } from "@/app/components/DataTable"
-import { COLLECTION_NAME, GOLD_TYPE, STONE_TYPE } from "@/constants/categories"
+import { COLLECTION_NAME, GOLD_TYPE, STONE_TYPE, SIZE_UNITS } from "@/constants/categories"
 
 export default function SKUsPage() {
   const [newSKUSheetOpen, setNewSKUSheetOpen] = useState(false)
@@ -34,12 +34,24 @@ export default function SKUsPage() {
       try {
         setLoading(true)
         const data = await fetchSkus()
+
+        // Log the raw data to see what we're getting
+        console.log("Initial SKU data:", data)
+
+        // Ensure size is properly processed
+        const processedData = data.map((sku) => ({
+          ...sku,
+          // Ensure size is a number if it exists
+          size: sku.size !== null && sku.size !== undefined ? Number(sku.size) : null,
+        }))
+
         // Sort by createdAt (newest first)
-        const sortedData = [...data].sort((a, b) => {
+        const sortedData = [...processedData].sort((a, b) => {
           const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
           const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
           return dateB - dateA // Descending order (newest first)
         })
+
         setSkus(sortedData)
       } catch (err) {
         console.error("Failed to fetch SKUs:", err)
@@ -97,37 +109,51 @@ export default function SKUsPage() {
     return filteredSKUs.slice(startIndex, startIndex + itemsPerPage)
   }, [filteredSKUs, currentPage, itemsPerPage])
 
-  const handleSKUCreated = async (newSKU) => {
-    try {
-      setActionInProgress(true)
+  const handleSKUCreated = (createdSkuFromBatch) => {
+    // Renamed parameter for clarity
+    console.log("onSKUCreated called with:", createdSkuFromBatch) // Log the received data
 
-      // Save to Supabase using server action
-      const result = await createSku(newSKU)
+    // Check if the data is valid and contains necessary fields
+    if (!createdSkuFromBatch || !createdSkuFromBatch.sku_id) {
+      console.error("Invalid SKU data received from NewSKUSheet callback")
+      setError("Invalid SKU data received. Please try again.")
+      return
+    }
 
-      if (result.success) {
-        // Add the new SKU to the state
-        setSkus((prevSkus) => [
-          {
-            ...newSKU,
-            // Use the database-generated SKU ID from the result
-            id: result.sku?.sku_id || result.sku?.id || `temp-${Date.now()}`,
-            sku_id: result.sku?.sku_id,
-            collection: newSKU.collection, // Include collection in the state
-            createdAt: new Date().toISOString(),
-          },
-          ...prevSkus, // Add to beginning to maintain newest-first order
-        ])
-        // Go to first page to see the new SKU
-        setCurrentPage(1)
-      } else {
-        setError(`Failed to create SKU: ${result.error}`)
-        console.error("Failed to create SKU:", result.error)
-      }
-    } catch (err) {
-      setError("An unexpected error occurred while creating the SKU.")
-      console.error("SKU creation error:", err)
-    } finally {
-      setActionInProgress(false)
+    // Add the new SKU (or array of SKUs) to the state
+    // Since createSkuBatch returns an array, handle it appropriately
+    const skusToAdd = Array.isArray(createdSkuFromBatch) ? createdSkuFromBatch : [createdSkuFromBatch]
+
+    setSkus((prevSkus) => {
+      // Sort the incoming skusToAdd to maintain newest-first order
+      const sortedSkusToAdd = [...skusToAdd].sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0
+        return dateB - dateA // Descending order
+      })
+
+      // Map the database fields to the frontend SKU model
+      const formattedSkus = sortedSkusToAdd.map((dbSku) => ({
+        id: dbSku.sku_id,
+        sku_id: dbSku.sku_id,
+        name: dbSku.name,
+        category: dbSku.category,
+        collection: dbSku.collection,
+        // Ensure size is a number if it exists
+        size: dbSku.size !== null && dbSku.size !== undefined ? Number(dbSku.size) : null,
+        goldType: dbSku.gold_type,
+        stoneType: dbSku.stone_type,
+        image: dbSku.image,
+        createdAt: dbSku.created_at,
+      }))
+
+      // Add the new SKUs to the beginning of the previous list
+      return [...formattedSkus, ...prevSkus]
+    })
+
+    // Go to first page to see the new SKU (only if current page is not 1)
+    if (currentPage !== 1) {
+      setCurrentPage(1)
     }
   }
 
@@ -165,12 +191,24 @@ export default function SKUsPage() {
       setLoading(true)
       setError(null)
       const data = await fetchSkus()
+
+      // Log the raw data to see what we're getting
+      console.log("Raw SKU data:", data)
+
+      // Ensure size is properly processed
+      const processedData = data.map((sku) => ({
+        ...sku,
+        // Ensure size is a number if it exists
+        size: sku.size !== null && sku.size !== undefined ? Number(sku.size) : null,
+      }))
+
       // Sort by createdAt (newest first)
-      const sortedData = [...data].sort((a, b) => {
+      const sortedData = [...processedData].sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
         return dateB - dateA // Descending order (newest first)
       })
+
       setSkus(sortedData)
     } catch (err) {
       console.error("Failed to refresh SKUs:", err)
@@ -218,7 +256,22 @@ export default function SKUsPage() {
     {
       header: "Size",
       accessor: "size",
-      render: (sku) => <span>{sku.size !== undefined ? sku.size : "-"}</span>,
+      render: (sku) => {
+        // Get the unit for this category
+        const unit = SIZE_UNITS[sku.category] || ""
+
+        // Display size with unit if available
+        if (sku.size !== undefined && sku.size !== null) {
+          return (
+            <span>
+              {sku.size}
+              {unit && ` ${unit}`}
+            </span>
+          )
+        }
+
+        return <span className="text-muted-foreground">-</span>
+      },
     },
     {
       header: "Gold Type",
