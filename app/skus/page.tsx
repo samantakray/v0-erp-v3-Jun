@@ -2,21 +2,23 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Edit, Trash2, Filter, AlertCircle } from "lucide-react"
 import Image from "next/image"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { NewSKUSheet } from "@/components/new-sku-sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { fetchSkus } from "@/lib/api-service"
 import { createSku, deleteSku } from "@/app/actions/sku-actions"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import type { SKU } from "@/types"
+import { DataTable, type Column } from "@/app/components/DataTable"
+import { COLLECTION_NAME, GOLD_TYPE, STONE_TYPE } from "@/constants/categories"
 
 export default function SKUsPage() {
   const [newSKUSheetOpen, setNewSKUSheetOpen] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState("all")
+  const [collectionFilter, setCollectionFilter] = useState("all")
   const [goldTypeFilter, setGoldTypeFilter] = useState("all")
   const [stoneTypeFilter, setStoneTypeFilter] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
@@ -24,13 +26,21 @@ export default function SKUsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionInProgress, setActionInProgress] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   useEffect(() => {
     async function loadSkus() {
       try {
         setLoading(true)
         const data = await fetchSkus()
-        setSkus(data)
+        // Sort by createdAt (newest first)
+        const sortedData = [...data].sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+          return dateB - dateA // Descending order (newest first)
+        })
+        setSkus(sortedData)
       } catch (err) {
         console.error("Failed to fetch SKUs:", err)
         setError("Failed to load SKUs. Please try again.")
@@ -43,33 +53,49 @@ export default function SKUsPage() {
   }, [])
 
   // Filter SKUs based on search query and filters
-  const filteredSKUs = skus.filter((sku) => {
-    // Search query filter
-    if (
-      searchQuery &&
-      !sku.id.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !sku.name.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false
-    }
+  const filteredSKUs = useMemo(() => {
+    return skus.filter((sku) => {
+      // Search query filter
+      if (
+        searchQuery &&
+        !sku.id?.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        !sku.name.toLowerCase().includes(searchQuery.toLowerCase())
+      ) {
+        return false
+      }
 
-    // Category filter
-    if (categoryFilter !== "all" && sku.category !== categoryFilter) {
-      return false
-    }
+      // Category filter
+      if (categoryFilter !== "all" && sku.category !== categoryFilter) {
+        return false
+      }
 
-    // Gold type filter
-    if (goldTypeFilter !== "all" && sku.goldType !== goldTypeFilter) {
-      return false
-    }
+      // Collection filter
+      if (collectionFilter !== "all" && sku.collection !== collectionFilter) {
+        return false
+      }
 
-    // Stone type filter
-    if (stoneTypeFilter !== "all" && sku.stoneType !== stoneTypeFilter) {
-      return false
-    }
+      // Gold type filter
+      if (goldTypeFilter !== "all" && sku.goldType !== goldTypeFilter) {
+        return false
+      }
 
-    return true
-  })
+      // Stone type filter
+      if (stoneTypeFilter !== "all" && sku.stoneType !== stoneTypeFilter) {
+        return false
+      }
+
+      return true
+    })
+  }, [skus, searchQuery, categoryFilter, collectionFilter, goldTypeFilter, stoneTypeFilter])
+
+  // Calculate total pages
+  const totalPages = Math.max(1, Math.ceil(filteredSKUs.length / itemsPerPage))
+
+  // Get current page items
+  const currentItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    return filteredSKUs.slice(startIndex, startIndex + itemsPerPage)
+  }, [filteredSKUs, currentPage, itemsPerPage])
 
   const handleSKUCreated = async (newSKU) => {
     try {
@@ -81,12 +107,18 @@ export default function SKUsPage() {
       if (result.success) {
         // Add the new SKU to the state
         setSkus((prevSkus) => [
-          ...prevSkus,
           {
             ...newSKU,
+            // Use the database-generated SKU ID from the result
+            id: result.sku?.sku_id || result.sku?.id || `temp-${Date.now()}`,
+            sku_id: result.sku?.sku_id,
+            collection: newSKU.collection, // Include collection in the state
             createdAt: new Date().toISOString(),
           },
+          ...prevSkus, // Add to beginning to maintain newest-first order
         ])
+        // Go to first page to see the new SKU
+        setCurrentPage(1)
       } else {
         setError(`Failed to create SKU: ${result.error}`)
         console.error("Failed to create SKU:", result.error)
@@ -111,6 +143,11 @@ export default function SKUsPage() {
       if (result.success) {
         // Remove the SKU from the state
         setSkus((prevSkus) => prevSkus.filter((sku) => sku.id !== skuId))
+
+        // Adjust current page if needed
+        if (currentItems.length === 1 && currentPage > 1) {
+          setCurrentPage(currentPage - 1)
+        }
       } else {
         setError(`Failed to delete SKU: ${result.error}`)
         console.error("Failed to delete SKU:", result.error)
@@ -122,6 +159,105 @@ export default function SKUsPage() {
       setActionInProgress(false)
     }
   }
+
+  const handleRefresh = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await fetchSkus()
+      // Sort by createdAt (newest first)
+      const sortedData = [...data].sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+        return dateB - dateA // Descending order (newest first)
+      })
+      setSkus(sortedData)
+    } catch (err) {
+      console.error("Failed to refresh SKUs:", err)
+      setError("Failed to refresh SKUs. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Define columns for DataTable
+  const columns: Column<SKU>[] = [
+    {
+      header: "Image",
+      accessor: "image",
+      render: (sku) => (
+        <Image
+          src={sku.image || "/placeholder.svg"}
+          alt={sku.name}
+          width={40}
+          height={40}
+          className="rounded-md object-cover"
+        />
+      ),
+      className: "w-[80px]",
+    },
+    {
+      header: "SKU ID",
+      accessor: "id",
+      render: (sku) => <span className="font-medium">{sku.id}</span>,
+    },
+    {
+      header: "Name",
+      accessor: "name",
+    },
+    {
+      header: "Category",
+      accessor: "category",
+      render: (sku) => <Badge variant="outline">{sku.category}</Badge>,
+    },
+    {
+      header: "Collection",
+      accessor: "collection",
+      render: (sku) => <Badge variant="secondary">{sku.collection || "N/A"}</Badge>,
+    },
+    {
+      header: "Size",
+      accessor: "size",
+      render: (sku) => <span>{sku.size !== undefined ? sku.size : "-"}</span>,
+    },
+    {
+      header: "Gold Type",
+      accessor: "goldType",
+    },
+    {
+      header: "Stone Type",
+      accessor: "stoneType",
+      render: (sku) => <span>{sku.stoneType === STONE_TYPE.NONE ? "-" : sku.stoneType}</span>,
+    },
+    {
+      header: "Actions",
+      accessor: "actions",
+      render: (sku) => (
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" size="icon" disabled={actionInProgress}>
+            <Edit className="h-4 w-4" />
+            <span className="sr-only">Edit</span>
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => handleDeleteSKU(sku.id)} disabled={actionInProgress}>
+            <Trash2 className="h-4 w-4" />
+            <span className="sr-only">Delete</span>
+          </Button>
+        </div>
+      ),
+      className: "text-right",
+    },
+  ]
+
+  // Group stone types for better organization in the dropdown
+  const groupedStoneTypes = Object.values(STONE_TYPE).reduce((acc, stoneType) => {
+    // Simple grouping by first letter
+    const firstLetter = stoneType.charAt(0).toUpperCase()
+    if (!acc[firstLetter]) {
+      acc[firstLetter] = []
+    }
+    acc[firstLetter].push(stoneType)
+    return acc
+  }, {})
 
   return (
     <div className="flex flex-col">
@@ -166,27 +302,51 @@ export default function SKUsPage() {
                   <SelectItem value="Pendant">Pendant</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={collectionFilter} onValueChange={setCollectionFilter}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Collection" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Collections</SelectItem>
+                  {Object.values(COLLECTION_NAME).map((collection) => (
+                    <SelectItem key={collection} value={collection}>
+                      {collection}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={goldTypeFilter} onValueChange={setGoldTypeFilter}>
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Gold Type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Gold Types</SelectItem>
-                  <SelectItem value="Yellow Gold">Yellow Gold</SelectItem>
-                  <SelectItem value="White Gold">White Gold</SelectItem>
-                  <SelectItem value="Rose Gold">Rose Gold</SelectItem>
+                  {Object.values(GOLD_TYPE).map((goldType) => (
+                    <SelectItem key={goldType} value={goldType}>
+                      {goldType}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={stoneTypeFilter} onValueChange={setStoneTypeFilter}>
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Stone Type" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-[300px]">
                   <SelectItem value="all">All Stone Types</SelectItem>
-                  <SelectItem value="None">None</SelectItem>
-                  <SelectItem value="Rubies">Rubies</SelectItem>
-                  <SelectItem value="Emeralds">Emeralds</SelectItem>
-                  <SelectItem value="Sapphires">Sapphires</SelectItem>
+                  {/* Group stone types alphabetically */}
+                  {Object.keys(groupedStoneTypes)
+                    .sort()
+                    .map((letter) => (
+                      <div key={letter}>
+                        <div className="px-2 py-1.5 text-xs font-semibold bg-muted/50">{letter}</div>
+                        {groupedStoneTypes[letter].map((stoneType) => (
+                          <SelectItem key={stoneType} value={stoneType}>
+                            {stoneType}
+                          </SelectItem>
+                        ))}
+                      </div>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -198,74 +358,18 @@ export default function SKUsPage() {
             </Button>
           </div>
         </div>
-        <div className="border rounded-lg">
-          {loading ? (
-            <div className="p-8 text-center">Loading SKUs...</div>
-          ) : error ? (
-            <div className="p-8 text-center text-red-500">{error}</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[80px]">Image</TableHead>
-                  <TableHead>SKU ID</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Gold Type</TableHead>
-                  <TableHead>Stone Type</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSKUs.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      No SKUs found matching your filters.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredSKUs.map((sku) => (
-                    <TableRow key={sku.id}>
-                      <TableCell>
-                        <Image
-                          src={sku.image || "/placeholder.svg"}
-                          alt={sku.name}
-                          width={40}
-                          height={40}
-                          className="rounded-md object-cover"
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">{sku.id}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{sku.category}</Badge>
-                      </TableCell>
-                      <TableCell>{sku.size}</TableCell>
-                      <TableCell>{sku.goldType}</TableCell>
-                      <TableCell>{sku.stoneType === "None" ? "-" : sku.stoneType}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" disabled={actionInProgress}>
-                            <Edit className="h-4 w-4" />
-                            <span className="sr-only">Edit</span>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteSKU(sku.id)}
-                            disabled={actionInProgress}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Delete</span>
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </div>
+
+        <DataTable
+          columns={columns}
+          data={currentItems}
+          loading={loading}
+          error={error}
+          onRefresh={handleRefresh}
+          caption={`Showing ${currentItems.length} of ${filteredSKUs.length} SKUs`}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       </main>
 
       {/* New SKU Sheet */}

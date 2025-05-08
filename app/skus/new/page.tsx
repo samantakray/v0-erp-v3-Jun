@@ -11,12 +11,19 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
+import {
+  SKU_CATEGORY,
+  DEFAULT_SIZES,
+  MIN_SIZES,
+  MAX_SIZES,
+  SIZE_DENOMINATIONS,
+  SIZE_UNITS,
+} from "@/constants/categories"
 
 export default function NewSKUPage() {
-  const [skuNumber, setSkuNumber] = useState("")
   const [createMultiple, setCreateMultiple] = useState(true)
   const [category, setCategory] = useState("Necklace")
-  const [size, setSize] = useState("")
+  const [size, setSize] = useState(DEFAULT_SIZES["Necklace"] ?? 0) // Add fallback
   const [goldType, setGoldType] = useState("Yellow Gold")
   const [stoneType, setStoneType] = useState("None")
   const [diamondType, setDiamondType] = useState("")
@@ -25,16 +32,13 @@ export default function NewSKUPage() {
   const [showPreview, setShowPreview] = useState(false)
   const [multipleSkus, setMultipleSkus] = useState([])
 
-  // Generate a random 5-digit SKU number when the component mounts
+  // Initialize with one SKU variant when the component mounts
   useEffect(() => {
-    setSkuNumber(Math.floor(10000 + Math.random() * 90000).toString())
-
-    // Initialize with one SKU variant
     if (multipleSkus.length === 0) {
       setMultipleSkus([
         {
           category: "Necklace",
-          size: "",
+          size: DEFAULT_SIZES["Necklace"] ?? 0, // Add fallback
           goldType: "Yellow Gold",
           stoneType: "None",
           diamondType: "",
@@ -45,75 +49,25 @@ export default function NewSKUPage() {
     }
   }, [])
 
-  // Function to generate SKU ID based on parameters
-  function generateSKU(category, skuNumber, goldType, stoneType) {
-    const categoryPrefix =
-      category === "Necklace"
-        ? "NK"
-        : category === "Earring"
-          ? "ER"
-          : category === "Bangle"
-            ? "BG"
-            : category === "Pendant"
-              ? "PN"
-              : category === "Ring"
-                ? "RG"
-                : ""
-
-    const goldCode =
-      goldType === "Yellow Gold" ? "YG" : goldType === "White Gold" ? "WG" : goldType === "Rose Gold" ? "RG" : ""
-
-    // Fix the stone type code mapping
-    const stoneCode =
-      stoneType === "None"
-        ? "NO"
-        : stoneType === "Emeralds"
-          ? "EM"
-          : stoneType === "Rubies"
-            ? "RB"
-            : stoneType === "Sapphires"
-              ? "SP"
-              : "NO"
-
-    return `${categoryPrefix}${skuNumber}${goldCode}${stoneCode}`
+  // Update size when category changes
+  const handleCategoryChange = (newCategory) => {
+    setCategory(newCategory)
+    setSize(DEFAULT_SIZES[newCategory] ?? 0) // Add fallback
   }
-
-  // Change to:
-  // function generateSKU(category, skuNumber, goldType, stoneType) {
-  //   const categoryPrefix =
-  //     category === "Necklace"
-  //       ? "NK"
-  //       : category === "Earring"
-  //         ? "ER"
-  //         : category === "Bangle"
-  //           ? "BG"
-  //           : category === "Pendant"
-  //             ? "PN"
-  //             : category === "Ring"
-  //               ? "RG"
-  //               : ""
-
-  //   const goldCode =
-  //     goldType === "Yellow Gold" ? "YG" : goldType === "White Gold" ? "WG" : goldType === "Rose Gold" ? "RG" : ""
-
-  //   // Fix the stone type mapping to correctly handle plural forms
-  //   const stoneCode =
-  //     stoneType === "None"
-  //       ? "NO"
-  //       : stoneType === "Emeralds" || stoneType === "Emerald"
-  //         ? "EM"
-  //         : stoneType === "Rubies" || stoneType === "Ruby"
-  //           ? "RB"
-  //           : stoneType === "Sapphires" || stoneType === "Sapphire"
-  //             ? "SP"
-  //             : "NO"
-
-  //   return `${categoryPrefix}${skuNumber}${goldCode}${stoneCode}`
-  // }
 
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setImage(e.target.files[0])
+    }
+  }
+
+  // Helper function to get size constraints for a category
+  const getSizeConstraints = (category) => {
+    return {
+      min: MIN_SIZES[category] ?? undefined,
+      max: MAX_SIZES[category] ?? undefined,
+      step: SIZE_DENOMINATIONS[category] ?? 1,
+      unit: SIZE_UNITS[category] ?? "",
     }
   }
 
@@ -123,9 +77,8 @@ export default function NewSKUPage() {
     if (!createMultiple) {
       // For single SKU creation
       console.log("Form submitted:", {
-        skuId: generateSKU(category, skuNumber, goldType, stoneType),
         category,
-        size,
+        size: Number(size), // Convert to number
         goldType,
         stoneType,
         diamondType,
@@ -143,14 +96,13 @@ export default function NewSKUPage() {
     // Create all SKUs
     const skus = createMultiple
       ? multipleSkus.map((sku) => ({
-          skuId: generateSKU(sku.category, skuNumber, sku.goldType, sku.stoneType),
           ...sku,
+          size: Number(sku.size), // Convert to number
         }))
       : [
           {
-            skuId: generateSKU(category, skuNumber, goldType, stoneType),
             category,
-            size,
+            size: Number(size), // Convert to number
             goldType,
             stoneType,
             diamondType,
@@ -162,6 +114,10 @@ export default function NewSKUPage() {
     console.log("Creating SKUs:", skus)
     // Redirect to SKUs page after submission
   }
+
+  // Get size constraints for the current category
+  const { min, max, step, unit } = getSizeConstraints(category)
+  const hasSizeConstraints = min !== undefined && max !== undefined
 
   return (
     <div className="flex flex-col">
@@ -185,7 +141,7 @@ export default function NewSKUPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="skuNumber">SKU Number (Auto-generated)</Label>
-                    <Input id="skuNumber" value={skuNumber} disabled />
+                    <Input id="skuNumber" value="Will be generated by the system" disabled />
                   </div>
 
                   <div className="space-y-2 flex items-center">
@@ -201,29 +157,40 @@ export default function NewSKUPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="category">Category</Label>
-                    <Select value={category} onValueChange={setCategory} disabled={createMultiple}>
+                    <Select value={category} onValueChange={handleCategoryChange} disabled={createMultiple}>
                       <SelectTrigger id="category">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Necklace">Necklace</SelectItem>
-                        <SelectItem value="Bangle">Bangle</SelectItem>
-                        <SelectItem value="Ring">Ring</SelectItem>
-                        <SelectItem value="Earring">Earring</SelectItem>
-                        <SelectItem value="Pendant">Pendant</SelectItem>
+                        {Object.values(SKU_CATEGORY).map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="size">Item Size</Label>
-                    <Input
-                      id="size"
-                      placeholder="Enter size"
-                      value={size}
-                      onChange={(e) => setSize(e.target.value)}
-                      disabled={createMultiple}
-                    />
+                    <Label htmlFor="size">Item Size {unit && `(${unit})`}</Label>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        id="size"
+                        type="number"
+                        min={min}
+                        max={max}
+                        step={step}
+                        placeholder="Enter size"
+                        value={size}
+                        onChange={(e) => setSize(e.target.value)}
+                        disabled={createMultiple || !hasSizeConstraints}
+                      />
+                      {hasSizeConstraints && (
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          Range: {min}-{max}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -293,7 +260,7 @@ export default function NewSKUPage() {
                           ...multipleSkus,
                           {
                             category: "Necklace",
-                            size: "",
+                            size: DEFAULT_SIZES["Necklace"] ?? 0, // Add fallback
                             goldType: "Yellow Gold",
                             stoneType: "None",
                             diamondType: "",
@@ -327,171 +294,193 @@ export default function NewSKUPage() {
                         </TableHeader>
                         <TableBody>
                           {createMultiple ? (
-                            multipleSkus.map((sku, index) => (
-                              <TableRow key={index}>
-                                <TableCell className="font-medium">{index + 1}</TableCell>
-                                <TableCell>
-                                  <Select
-                                    value={sku.category}
-                                    onValueChange={(value) => {
-                                      const newSkus = [...multipleSkus]
-                                      newSkus[index].category = value
-                                      setMultipleSkus(newSkus)
-                                    }}
-                                  >
-                                    <SelectTrigger className="w-[120px]">
-                                      <SelectValue placeholder="Category" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="Necklace">Necklace</SelectItem>
-                                      <SelectItem value="Bangle">Bangle</SelectItem>
-                                      <SelectItem value="Ring">Ring</SelectItem>
-                                      <SelectItem value="Earring">Earring</SelectItem>
-                                      <SelectItem value="Pendant">Pendant</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </TableCell>
-                                <TableCell>
-                                  <Input
-                                    value={sku.size}
-                                    onChange={(e) => {
-                                      const newSkus = [...multipleSkus]
-                                      newSkus[index].size = e.target.value
-                                      setMultipleSkus(newSkus)
-                                    }}
-                                    className="w-[80px]"
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  <Select
-                                    value={sku.goldType}
-                                    onValueChange={(value) => {
-                                      const newSkus = [...multipleSkus]
-                                      newSkus[index].goldType = value
-                                      setMultipleSkus(newSkus)
-                                    }}
-                                  >
-                                    <SelectTrigger className="w-[120px]">
-                                      <SelectValue placeholder="Gold Type" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="Yellow Gold">Yellow Gold</SelectItem>
-                                      <SelectItem value="White Gold">White Gold</SelectItem>
-                                      <SelectItem value="Rose Gold">Rose Gold</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </TableCell>
-                                <TableCell>
-                                  <Select
-                                    value={sku.stoneType}
-                                    onValueChange={(value) => {
-                                      const newSkus = [...multipleSkus]
-                                      newSkus[index].stoneType = value
-                                      setMultipleSkus(newSkus)
-                                    }}
-                                  >
-                                    <SelectTrigger className="w-[120px]">
-                                      <SelectValue placeholder="Stone Type" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="None">None</SelectItem>
-                                      <SelectItem value="Rubies">Rubies</SelectItem>
-                                      <SelectItem value="Emeralds">Emeralds</SelectItem>
-                                      <SelectItem value="Sapphires">Sapphires</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </TableCell>
-                                <TableCell>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    value={sku.diamondType}
-                                    onChange={(e) => {
-                                      const newSkus = [...multipleSkus]
-                                      newSkus[index].diamondType = e.target.value
-                                      setMultipleSkus(newSkus)
-                                    }}
-                                    className="w-[80px]"
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    value={sku.weight}
-                                    onChange={(e) => {
-                                      const newSkus = [...multipleSkus]
-                                      newSkus[index].weight = e.target.value
-                                      setMultipleSkus(newSkus)
-                                    }}
-                                    className="w-[80px]"
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="w-full"
-                                    onClick={() => document.getElementById(`image-${index}`).click()}
-                                  >
-                                    <Upload className="mr-2 h-4 w-4" />
-                                    Upload
-                                  </Button>
-                                  <Input
-                                    id={`image-${index}`}
-                                    type="file"
-                                    className="hidden"
-                                    accept="image/*"
-                                    onChange={(e) => {
-                                      if (e.target.files && e.target.files[0]) {
+                            multipleSkus.map((sku, index) => {
+                              const { min, max, step, unit } = getSizeConstraints(sku.category)
+                              const hasSizeConstraints = min !== undefined && max !== undefined
+
+                              return (
+                                <TableRow key={index}>
+                                  <TableCell className="font-medium">{index + 1}</TableCell>
+                                  <TableCell>
+                                    <Select
+                                      value={sku.category}
+                                      onValueChange={(value) => {
                                         const newSkus = [...multipleSkus]
-                                        newSkus[index].image = e.target.files[0]
+                                        newSkus[index].category = value
+                                        newSkus[index].size = DEFAULT_SIZES[value] ?? 0 // Add fallback
                                         setMultipleSkus(newSkus)
-                                      }
-                                    }}
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => {
-                                      const newSkus = [...multipleSkus]
-                                      newSkus.splice(index, 1)
-                                      setMultipleSkus(newSkus)
-                                    }}
-                                    disabled={multipleSkus.length <= 1}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-[120px]">
+                                        <SelectValue placeholder="Category" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {Object.values(SKU_CATEGORY).map((category) => (
+                                          <SelectItem key={category} value={category}>
+                                            {category}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center space-x-1">
+                                      <Input
+                                        type="number"
+                                        min={min}
+                                        max={max}
+                                        step={step}
+                                        value={sku.size}
+                                        onChange={(e) => {
+                                          const newSkus = [...multipleSkus]
+                                          newSkus[index].size = e.target.value
+                                          setMultipleSkus(newSkus)
+                                        }}
+                                        className="w-[80px]"
+                                        disabled={!hasSizeConstraints}
+                                      />
+                                      {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Select
+                                      value={sku.goldType}
+                                      onValueChange={(value) => {
+                                        const newSkus = [...multipleSkus]
+                                        newSkus[index].goldType = value
+                                        setMultipleSkus(newSkus)
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-[120px]">
+                                        <SelectValue placeholder="Gold Type" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Yellow Gold">Yellow Gold</SelectItem>
+                                        <SelectItem value="White Gold">White Gold</SelectItem>
+                                        <SelectItem value="Rose Gold">Rose Gold</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Select
+                                      value={sku.stoneType}
+                                      onValueChange={(value) => {
+                                        const newSkus = [...multipleSkus]
+                                        newSkus[index].stoneType = value
+                                        setMultipleSkus(newSkus)
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-[120px]">
+                                        <SelectValue placeholder="Stone Type" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="None">None</SelectItem>
+                                        <SelectItem value="Rubies">Rubies</SelectItem>
+                                        <SelectItem value="Emeralds">Emeralds</SelectItem>
+                                        <SelectItem value="Sapphires">Sapphires</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      value={sku.diamondType}
+                                      onChange={(e) => {
+                                        const newSkus = [...multipleSkus]
+                                        newSkus[index].diamondType = e.target.value
+                                        setMultipleSkus(newSkus)
+                                      }}
+                                      className="w-[80px]"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      value={sku.weight}
+                                      onChange={(e) => {
+                                        const newSkus = [...multipleSkus]
+                                        newSkus[index].weight = e.target.value
+                                        setMultipleSkus(newSkus)
+                                      }}
+                                      className="w-[80px]"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full"
+                                      onClick={() => document.getElementById(`image-${index}`).click()}
+                                    >
+                                      <Upload className="mr-2 h-4 w-4" />
+                                      Upload
+                                    </Button>
+                                    <Input
+                                      id={`image-${index}`}
+                                      type="file"
+                                      className="hidden"
+                                      accept="image/*"
+                                      onChange={(e) => {
+                                        if (e.target.files && e.target.files[0]) {
+                                          const newSkus = [...multipleSkus]
+                                          newSkus[index].image = e.target.files[0]
+                                          setMultipleSkus(newSkus)
+                                        }
+                                      }}
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        const newSkus = [...multipleSkus]
+                                        newSkus.splice(index, 1)
+                                        setMultipleSkus(newSkus)
+                                      }}
+                                      disabled={multipleSkus.length <= 1}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            })
                           ) : (
                             <TableRow>
                               <TableCell className="font-medium">1</TableCell>
                               <TableCell>
-                                <Select value={category} onValueChange={setCategory}>
+                                <Select value={category} onValueChange={handleCategoryChange}>
                                   <SelectTrigger className="w-[120px]">
                                     <SelectValue placeholder="Category" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="Necklace">Necklace</SelectItem>
-                                    <SelectItem value="Bangle">Bangle</SelectItem>
-                                    <SelectItem value="Ring">Ring</SelectItem>
-                                    <SelectItem value="Earring">Earring</SelectItem>
-                                    <SelectItem value="Pendant">Pendant</SelectItem>
+                                    {Object.values(SKU_CATEGORY).map((category) => (
+                                      <SelectItem key={category} value={category}>
+                                        {category}
+                                      </SelectItem>
+                                    ))}
                                   </SelectContent>
                                 </Select>
                               </TableCell>
                               <TableCell>
-                                <Input
-                                  value={size}
-                                  onChange={(e) => setSize(e.target.value)}
-                                  className="w-[80px]"
-                                  placeholder="Enter size"
-                                />
+                                <div className="flex items-center space-x-1">
+                                  <Input
+                                    type="number"
+                                    min={min}
+                                    max={max}
+                                    step={step}
+                                    value={size}
+                                    onChange={(e) => setSize(e.target.value)}
+                                    className="w-[80px]"
+                                    placeholder="Enter size"
+                                    disabled={!hasSizeConstraints}
+                                  />
+                                  {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <Select value={goldType} onValueChange={setGoldType}>
@@ -602,26 +591,25 @@ export default function NewSKUPage() {
                     </TableHeader>
                     <TableBody>
                       {createMultiple ? (
-                        multipleSkus.map((sku, index) => (
-                          <TableRow key={index}>
-                            <TableCell className="font-medium">
-                              {generateSKU(sku.category, skuNumber, sku.goldType, sku.stoneType)}
-                            </TableCell>
-                            <TableCell>{sku.category}</TableCell>
-                            <TableCell>{sku.size || "N/A"}</TableCell>
-                            <TableCell>{sku.goldType}</TableCell>
-                            <TableCell>{sku.stoneType}</TableCell>
-                            <TableCell>{sku.diamondType || "N/A"}</TableCell>
-                            <TableCell>{sku.weight || "N/A"}</TableCell>
-                          </TableRow>
-                        ))
+                        multipleSkus.map((sku, index) => {
+                          const { unit } = getSizeConstraints(sku.category)
+                          return (
+                            <TableRow key={index}>
+                              <TableCell className="font-medium">[Will be generated]</TableCell>
+                              <TableCell>{sku.category}</TableCell>
+                              <TableCell>{sku.size ? `${sku.size}${unit ? ` ${unit}` : ""}` : "N/A"}</TableCell>
+                              <TableCell>{sku.goldType}</TableCell>
+                              <TableCell>{sku.stoneType}</TableCell>
+                              <TableCell>{sku.diamondType || "N/A"}</TableCell>
+                              <TableCell>{sku.weight || "N/A"}</TableCell>
+                            </TableRow>
+                          )
+                        })
                       ) : (
                         <TableRow>
-                          <TableCell className="font-medium">
-                            {generateSKU(category, skuNumber, goldType, stoneType)}
-                          </TableCell>
+                          <TableCell className="font-medium">[Will be generated]</TableCell>
                           <TableCell>{category}</TableCell>
-                          <TableCell>{size || "N/A"}</TableCell>
+                          <TableCell>{size ? `${size}${unit ? ` ${unit}` : ""}` : "N/A"}</TableCell>
                           <TableCell>{goldType}</TableCell>
                           <TableCell>{stoneType}</TableCell>
                           <TableCell>{diamondType || "N/A"}</TableCell>

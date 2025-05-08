@@ -7,7 +7,15 @@ import type { SKU } from "@/types"
 
 export async function createSku(skuData: Omit<SKU, "id" | "createdAt">) {
   const startTime = performance.now()
-  logger.info(`createSku called`, { data: { name: skuData.name, category: skuData.category } })
+  logger.info(`createSku called`, {
+    data: {
+      name: skuData.name,
+      category: skuData.category,
+      collection: skuData.collection,
+      goldType: skuData.goldType,
+      stoneType: skuData.stoneType,
+    },
+  })
 
   // Create Supabase client with service role key for server actions
   const supabase = createServiceClient()
@@ -18,7 +26,8 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">) {
       // No sku_id field - let the database generate it
       name: skuData.name,
       category: skuData.category,
-      size: skuData.size || null,
+      collection: skuData.collection || null, // Add collection field
+      size: skuData.size || null, // This will now be a number or null
       gold_type: skuData.goldType,
       stone_type: skuData.stoneType,
       diamond_type: skuData.diamondType || null,
@@ -32,6 +41,9 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">) {
       data: {
         name: skuData.name,
         category: skuData.category,
+        collection: skuData.collection,
+        goldType: skuData.goldType,
+        stoneType: skuData.stoneType,
       },
     })
 
@@ -45,7 +57,7 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">) {
         error,
         duration,
       })
-      return { success: false, error: error.message }
+      return { success: false, error: error.message || "An unexpected error occurred", sku: null }
     }
 
     // Revalidate paths
@@ -53,7 +65,13 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">) {
 
     const duration = performance.now() - startTime
     logger.info(`createSku completed successfully`, {
-      data: { skuId: data[0].sku_id, name: skuData.name },
+      data: {
+        skuId: data[0].sku_id,
+        name: skuData.name,
+        collection: skuData.collection,
+        goldType: skuData.goldType,
+        stoneType: skuData.stoneType,
+      },
       duration,
     })
 
@@ -65,7 +83,7 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">) {
       error,
       duration,
     })
-    return { success: false, error: "An unexpected error occurred" }
+    return { success: false, error: error.message || "An unexpected error occurred", sku: null }
   }
 }
 

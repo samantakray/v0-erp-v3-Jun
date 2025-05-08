@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Trash2, Save } from "lucide-react"
+import { SKU_CATEGORY } from "@/constants/categories"
 
 export default function SettingsPage() {
   // Initial data for each category
-  const [categories, setCategories] = useState(["Necklace", "Bangle", "Ring", "Earring", "Pendant"])
+  const [categories, setCategories] = useState(Object.values(SKU_CATEGORY))
 
   const [goldTypes, setGoldTypes] = useState(["Yellow Gold", "White Gold", "Rose Gold"])
 

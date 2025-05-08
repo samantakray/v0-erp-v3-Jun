@@ -1,3 +1,4 @@
+// ./lib/supabaseClient.ts
 import { createClient } from "@supabase/supabase-js"
 import { logger } from "./logger"
 
