@@ -1,0 +1,19 @@
+.sku-row-selected {
+  opacity: 0.6;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.sku-row-selected button {
+  cursor: not-allowed;
+}
+
+.auto-width-table {
+  width: auto !important;
+  max-width: 95%;
+  margin: 0 auto;
+}
+
+.auto-width-table-container {
+  display: flex;
+  justify-content: center;
+}

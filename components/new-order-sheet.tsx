@@ -4,21 +4,32 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Search, Trash2, AlertTriangle, Loader2, Info } from "lucide-react"
+import { Plus, Search, Trash2, AlertTriangle, Loader2, Info, CheckCircle } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetDescription } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Separator } from "@/components/ui/separator"
 import { NewSKUSheet } from "./new-sku-sheet"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { logger } from "@/lib/logger"
 import { fetchSkus, fetchCustomers } from "@/lib/api-service"
 import { ORDER_STATUS } from "@/constants/job-workflow"
+import { GOLD_TYPE_CODES } from "@/constants/categories"
+import "@/styles/order-form.css"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 
 // Default customer ID for "Exquisite Fine Jewellery" - replace with the actual ID from Phase 1
 const DEFAULT_CUSTOMER_ID = "8505d3dc-97c0-4636-a11d-1c8305ed07ac"
+
+// Helper function to calculate default production date (today + 45 days)
+function getDefaultProductionDate() {
+  const today = new Date()
+  const futureDate = new Date(today)
+  futureDate.setDate(today.getDate() + 45)
+  return futureDate.toISOString().split("T")[0] // Format as YYYY-MM-DD
+}
 
 export function NewOrderSheet({
   open,
@@ -48,7 +59,7 @@ export function NewOrderSheet({
   const [customerName, setCustomerName] = useState(editOrder?.customerName || "Exquisite Fine Jewellery")
   const [customerId, setCustomerId] = useState(editOrder?.customerId || DEFAULT_CUSTOMER_ID) // Add customerId state
   const [selectedSKUs, setSelectedSKUs] = useState(editOrder?.skus || [])
-  const [productionDueDate, setProductionDueDate] = useState(editOrder?.productionDate || "")
+  const [productionDueDate, setProductionDueDate] = useState(editOrder?.productionDate || getDefaultProductionDate())
   const [deliveryDate, setDeliveryDate] = useState(editOrder?.deliveryDate || "")
   const [searchQuery, setSearchQuery] = useState("")
   const [dateWarning, setDateWarning] = useState(false)
@@ -58,8 +69,8 @@ export function NewOrderSheet({
   const [skuError, setSkuError] = useState(null)
   const [remarks, setRemarks] = useState(editOrder?.remarks || "")
   const [sameDatesForAll, setSameDatesForAll] = useState({
-    production: true,
-    delivery: true,
+    production: false, // Changed from true to false
+    delivery: false, // Changed from true to false
   })
   const [isDraft, setIsDraft] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState("all")
@@ -70,6 +81,13 @@ export function NewOrderSheet({
   const [formError, setFormError] = useState<string | null>(null)
   const [customers, setCustomers] = useState([])
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(true)
+  const [activeTab, setActiveTab] = useState("select-sku")
+
+  // For bulk assign functionality
+  const [bulkSkuInput, setBulkSkuInput] = useState("")
+  const [bulkAssignError, setBulkAssignError] = useState(null)
+  const [bulkAssignSuccess, setBulkAssignSuccess] = useState(null)
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false)
 
   // Fetch customers from Supabase when component mounts
   useEffect(() => {
@@ -140,12 +158,14 @@ export function NewOrderSheet({
   // Filter SKUs based on search query and filters
   const filteredSKUs = availableSKUs.filter((sku) => {
     // Search query filter
-    if (
-      searchQuery &&
-      !sku.id.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !sku.name.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false
+    if (searchQuery) {
+      const skuId = sku.id ? sku.id.toLowerCase() : ""
+      const skuName = sku.name ? sku.name.toLowerCase() : ""
+      const query = searchQuery.toLowerCase()
+
+      if (!skuId.includes(query) && !skuName.includes(query)) {
+        return false
+      }
     }
 
     // Category filter
@@ -166,24 +186,14 @@ export function NewOrderSheet({
     return true
   })
 
-  // Calculate minimum delivery date (7 days after production due date)
+  // Check if delivery date is before production date
   useEffect(() => {
-    if (productionDueDate) {
+    if (productionDueDate && deliveryDate) {
       const prodDate = new Date(productionDueDate)
-      const minDeliveryDate = new Date(prodDate)
-      minDeliveryDate.setDate(prodDate.getDate() + 7)
+      const delDate = new Date(deliveryDate)
 
-      // Format as YYYY-MM-DD for the input
-      const formattedDate = minDeliveryDate.toISOString().split("T")[0]
-
-      // Only set delivery date automatically if it hasn't been set yet
-      if (!deliveryDate) {
-        setDeliveryDate(formattedDate)
-      } else {
-        // Check if current delivery date is before minimum
-        const currentDeliveryDate = new Date(deliveryDate)
-        setDateWarning(currentDeliveryDate < minDeliveryDate)
-      }
+      // Set warning if delivery date is before production date
+      setDateWarning(delDate < prodDate)
     }
   }, [productionDueDate, deliveryDate])
 
@@ -271,11 +281,10 @@ export function NewOrderSheet({
 
     if (productionDueDate) {
       const prodDate = new Date(productionDueDate)
-      const minDeliveryDate = new Date(prodDate)
-      minDeliveryDate.setDate(prodDate.getDate() + 7)
-
       const newDeliveryDate = new Date(date)
-      setDateWarning(newDeliveryDate < minDeliveryDate)
+
+      // Set warning if delivery date is before production date
+      setDateWarning(newDeliveryDate < prodDate)
     }
   }
 
@@ -285,6 +294,11 @@ export function NewOrderSheet({
     setCustomerId(id)
     setCustomerName(name)
     logger.debug("Customer selected:", { id, name })
+  }
+
+  // Check if a SKU is already selected
+  const isSkuSelected = (skuId) => {
+    return selectedSKUs.some((sku) => sku.id === skuId)
   }
 
   const addSKU = (sku) => {
@@ -303,8 +317,8 @@ export function NewOrderSheet({
         quantity: 1,
         size: sku.size || "",
         remarks: "",
-        individualProductionDate: productionDueDate,
-        individualDeliveryDate: deliveryDate,
+        individualProductionDate: productionDueDate || "",
+        individualDeliveryDate: deliveryDate || "",
       }
       setSelectedSKUs([...selectedSKUs, newSku])
     }
@@ -352,6 +366,135 @@ export function NewOrderSheet({
       return sku
     })
     setSelectedSKUs(updatedSKUs)
+
+    // If this is a production date update, check for delivery date warnings
+    if (field === "individualProductionDate") {
+      const updatedSku = updatedSKUs.find((sku) => sku.id === skuId)
+      if (updatedSku && updatedSku.individualDeliveryDate) {
+        const prodDate = new Date(value)
+        const delDate = new Date(updatedSku.individualDeliveryDate)
+
+        // Set warning if delivery date is before production date for this SKU
+        if (delDate < prodDate) {
+          setDateWarning(true)
+        } else if (
+          !updatedSKUs.some((sku) => {
+            if (sku.individualProductionDate && sku.individualDeliveryDate) {
+              const p = new Date(sku.individualProductionDate)
+              const d = new Date(sku.individualDeliveryDate)
+              return d < p
+            }
+            return false
+          })
+        ) {
+          // If no SKUs have delivery before production, clear the warning
+          setDateWarning(false)
+        }
+      }
+    }
+  }
+
+  // Get gold type acronym from full name
+  const getGoldTypeAcronym = (goldType) => {
+    return GOLD_TYPE_CODES[goldType] || goldType || "-"
+  }
+
+  /**
+   * Parses the bulk SKU input string into an array of SKU IDs and quantities
+   * Format expected: "SKU-001:2, SKU-002:1, SKU-003:3"
+   */
+  const parseBulkSkuInput = (input) => {
+    if (!input.trim()) return []
+
+    try {
+      return input
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item) => item)
+        .map((item) => {
+          const [skuId, quantityStr] = item.split(":").map((part) => part.trim())
+          const quantity = Number.parseInt(quantityStr, 10)
+
+          if (!skuId) throw new Error(`Invalid SKU ID format in "${item}"`)
+          if (isNaN(quantity) || quantity <= 0) throw new Error(`Invalid quantity for SKU ${skuId}`)
+
+          return { skuId, quantity }
+        })
+    } catch (error) {
+      throw new Error(`Failed to parse input: ${error.message}`)
+    }
+  }
+
+  /**
+   * Processes the parsed bulk SKU data and adds the SKUs to the selected list
+   */
+  const processBulkSkus = async () => {
+    setBulkAssignError(null)
+    setBulkAssignSuccess(null)
+    setIsBulkProcessing(true)
+
+    try {
+      const parsedItems = parseBulkSkuInput(bulkSkuInput)
+      if (parsedItems.length === 0) {
+        setBulkAssignError("Please enter at least one SKU in the correct format")
+        setIsBulkProcessing(false)
+        return
+      }
+
+      // Find matching SKUs in the available SKUs list
+      const skusToAdd = []
+      const notFoundSkus = []
+
+      for (const item of parsedItems) {
+        const sku = availableSKUs.find((s) => s.id === item.skuId)
+        if (sku) {
+          // Check if SKU is already selected
+          const existingIndex = selectedSKUs.findIndex((s) => s.id === item.skuId)
+
+          if (existingIndex >= 0) {
+            // Update quantity if already selected
+            const updatedSKUs = [...selectedSKUs]
+            updatedSKUs[existingIndex].quantity += item.quantity
+            setSelectedSKUs(updatedSKUs)
+          } else {
+            // Add new SKU with specified quantity
+            skusToAdd.push({
+              ...sku,
+              quantity: item.quantity,
+              size: sku.size || "",
+              remarks: "",
+              individualProductionDate: productionDueDate || "",
+              individualDeliveryDate: deliveryDate || "",
+            })
+          }
+        } else {
+          notFoundSkus.push(item.skuId)
+        }
+      }
+
+      if (skusToAdd.length > 0) {
+        setSelectedSKUs((prev) => [...prev, ...skusToAdd])
+      }
+
+      // Generate success/error message
+      if (notFoundSkus.length > 0) {
+        setBulkAssignError(`The following SKUs were not found: ${notFoundSkus.join(", ")}`)
+        if (skusToAdd.length > 0) {
+          setBulkAssignSuccess(`Successfully added ${skusToAdd.length} SKU(s) to your order`)
+        }
+      } else {
+        setBulkAssignSuccess(`Successfully added ${skusToAdd.length} SKU(s) to your order`)
+        // Clear the input on success if all SKUs were found
+        setBulkSkuInput("")
+      }
+
+      // Switch to the first tab to show the selected SKUs
+      setActiveTab("select-sku")
+    } catch (error) {
+      setBulkAssignError(error.message)
+    } finally {
+      setIsBulkProcessing(false)
+    }
   }
 
   const handleSubmit = (e) => {
@@ -413,13 +556,13 @@ export function NewOrderSheet({
     if (!isSubmitting) {
       if (!isDraft) {
         setSelectedSKUs([])
-        setProductionDueDate("")
+        setProductionDueDate(getDefaultProductionDate())
         setDeliveryDate("")
         setOrderType("Stock")
         setCustomerId(DEFAULT_CUSTOMER_ID)
         setCustomerName("Exquisite Fine Jewellery")
         setRemarks("")
-        setSameDatesForAll({ production: true, delivery: true })
+        setSameDatesForAll({ production: false, delivery: false })
       }
 
       onOpenChange(false)
@@ -438,10 +581,13 @@ export function NewOrderSheet({
         quantity: 1,
         size: newSKU.size || "",
         remarks: "",
-        individualProductionDate: productionDueDate,
-        individualDeliveryDate: deliveryDate,
+        individualProductionDate: productionDueDate || "",
+        individualDeliveryDate: deliveryDate || "",
       },
     ])
+
+    // Switch to the Select SKU tab after creating a new SKU
+    setActiveTab("select-sku")
   }
 
   const openImageDialog = (image) => {
@@ -547,53 +693,7 @@ export function NewOrderSheet({
                   )}
                 </div>
 
-                <div className="space-y-2 w-[180px]">
-                  <Label htmlFor="productionDueDate">Production Date</Label>
-                  <Input
-                    id="productionDueDate"
-                    type="date"
-                    value={productionDueDate}
-                    onChange={(e) => setProductionDueDate(e.target.value)}
-                    required={!isDraft}
-                    disabled={isSubmitting}
-                  />
-                  <div className="flex items-center space-x-2 mt-1">
-                    <Checkbox
-                      id="sameProdDate"
-                      checked={sameDatesForAll.production}
-                      onCheckedChange={(checked) => setSameDatesForAll({ ...sameDatesForAll, production: checked })}
-                      disabled={isSubmitting}
-                    />
-                    <label htmlFor="sameProdDate" className="text-xs text-muted-foreground cursor-pointer">
-                      Same for all SKUs
-                    </label>
-                  </div>
-                </div>
-
-                <div className="space-y-2 w-[180px]">
-                  <Label htmlFor="deliveryDate">Delivery Date</Label>
-                  <Input
-                    id="deliveryDate"
-                    type="date"
-                    value={deliveryDate}
-                    onChange={(e) => handleDeliveryDateChange(e.target.value)}
-                    required={!isDraft}
-                    disabled={isSubmitting}
-                  />
-                  <div className="flex items-center space-x-2 mt-1">
-                    <Checkbox
-                      id="sameDeliveryDate"
-                      checked={sameDatesForAll.delivery}
-                      onCheckedChange={(checked) => setSameDatesForAll({ ...sameDatesForAll, delivery: checked })}
-                      disabled={isSubmitting}
-                    />
-                    <label htmlFor="sameDeliveryDate" className="text-xs text-muted-foreground cursor-pointer">
-                      Same for all SKUs
-                    </label>
-                  </div>
-                </div>
-
-                <div className="space-y-2 flex-1 min-w-[200px]">
+                <div className="space-y-2 w-[200px]">
                   <Label htmlFor="remarks">Reference Notes</Label>
                   <Input
                     id="remarks"
@@ -603,14 +703,61 @@ export function NewOrderSheet({
                     disabled={isSubmitting}
                   />
                 </div>
+
+                <div className="space-y-2 w-[150px]">
+                  <Label htmlFor="productionDate">Production Date</Label>
+                  <Input
+                    id="productionDate"
+                    type="date"
+                    value={productionDueDate}
+                    onChange={(e) => setProductionDueDate(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                  <div className="flex items-center space-x-2 mt-1">
+                    <Checkbox
+                      id="same-production-date"
+                      checked={sameDatesForAll.production}
+                      onCheckedChange={(checked) => setSameDatesForAll((prev) => ({ ...prev, production: !!checked }))}
+                    />
+                    <Label htmlFor="same-production-date" className="text-sm">
+                      Same for all SKUs
+                    </Label>
+                  </div>
+                </div>
+
+                <div className="space-y-2 w-[150px]">
+                  <Label htmlFor="deliveryDate">Delivery Date</Label>
+                  <Input
+                    id="deliveryDate"
+                    type="date"
+                    value={deliveryDate}
+                    onChange={(e) => handleDeliveryDateChange(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                  <div className="flex items-center space-x-2 mt-1">
+                    <Checkbox
+                      id="same-delivery-date"
+                      checked={sameDatesForAll.delivery}
+                      onCheckedChange={(checked) => setSameDatesForAll((prev) => ({ ...prev, delivery: !!checked }))}
+                    />
+                    <Label htmlFor="same-delivery-date" className="text-sm">
+                      Same for all SKUs
+                    </Label>
+                  </div>
+                </div>
               </div>
 
               {dateWarning && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>Delivery date should be at least 7 days after production due date</AlertDescription>
+                  <AlertDescription>Delivery Date cannot be set before the production date</AlertDescription>
                 </Alert>
               )}
+
+              {/* Separator above Selected SKUs */}
+              <div className="my-6 flex items-center">
+                <div className="flex-grow h-px bg-border"></div>
+              </div>
 
               {/* Selected SKUs Table - Now above the SKUs Database List */}
               <div className="space-y-2">
@@ -628,6 +775,7 @@ export function NewOrderSheet({
                           <TableHead>Image</TableHead>
                           <TableHead>SKU ID</TableHead>
                           <TableHead>Name</TableHead>
+                          <TableHead>Gold Type</TableHead>
                           <TableHead>Size</TableHead>
                           <TableHead>Quantity</TableHead>
                           <TableHead>Production Date</TableHead>
@@ -653,6 +801,7 @@ export function NewOrderSheet({
                             </TableCell>
                             <TableCell className="font-medium">{sku.id}</TableCell>
                             <TableCell>{sku.name}</TableCell>
+                            <TableCell>{getGoldTypeAcronym(sku.goldType)}</TableCell>
                             <TableCell>
                               <Input
                                 type="text"
@@ -681,6 +830,15 @@ export function NewOrderSheet({
                                     ? setProductionDueDate(e.target.value)
                                     : updateIndividualDate(sku.id, "individualProductionDate", e.target.value)
                                 }
+                                onPaste={(e) => {
+                                  if (sameDatesForAll.production) return
+                                  e.preventDefault()
+                                  const pastedText = e.clipboardData.getData("text")
+                                  // Try to parse the pasted text as a date
+                                  if (pastedText && /^\d{4}-\d{2}-\d{2}$/.test(pastedText)) {
+                                    updateIndividualDate(sku.id, "individualProductionDate", pastedText)
+                                  }
+                                }}
                                 disabled={isSubmitting || sameDatesForAll.production}
                               />
                             </TableCell>
@@ -693,6 +851,15 @@ export function NewOrderSheet({
                                     ? handleDeliveryDateChange(e.target.value)
                                     : updateIndividualDate(sku.id, "individualDeliveryDate", e.target.value)
                                 }
+                                onPaste={(e) => {
+                                  if (sameDatesForAll.delivery) return
+                                  e.preventDefault()
+                                  const pastedText = e.clipboardData.getData("text")
+                                  // Try to parse the pasted text as a date
+                                  if (pastedText && /^\d{4}-\d{2}-\d{2}$/.test(pastedText)) {
+                                    updateIndividualDate(sku.id, "individualDeliveryDate", pastedText)
+                                  }
+                                }}
                                 disabled={isSubmitting || sameDatesForAll.delivery}
                               />
                             </TableCell>
@@ -727,153 +894,192 @@ export function NewOrderSheet({
                 )}
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>SKUs Database List</Label>
-                </div>
+              <div className="mt-6">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                  <TabsList className="grid grid-cols-3">
+                    <TabsTrigger value="select-sku">Select an SKU</TabsTrigger>
+                    <TabsTrigger value="create-sku">Create an SKU</TabsTrigger>
+                    <TabsTrigger value="bulk-assign">Bulk Assign</TabsTrigger>
+                  </TabsList>
 
-                <div className="flex flex-wrap gap-2 mb-2">
-                  <div className="relative flex-grow">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      placeholder="Search SKUs..."
-                      className="pl-8"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      disabled={isSubmitting}
-                    />
-                  </div>
+                  <TabsContent value="select-sku">
+                    <div className="p-4 space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        Search for existing SKUs in the database and add them to your order. Selected SKUs will appear
+                        in the table above.
+                      </p>
 
-                  <Select value={categoryFilter} onValueChange={setCategoryFilter} disabled={isSubmitting}>
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue placeholder="Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category === "all" ? "All Categories" : category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                      <div className="relative mb-4 w-full">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="search"
+                          placeholder="Search SKUs..."
+                          className="pl-8 w-full"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          disabled={isSubmitting}
+                        />
+                      </div>
 
-                  <Select value={goldTypeFilter} onValueChange={setGoldTypeFilter} disabled={isSubmitting}>
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue placeholder="Gold Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {goldTypes.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type === "all" ? "All Gold Types" : type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Select value={stoneTypeFilter} onValueChange={setStoneTypeFilter} disabled={isSubmitting}>
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue placeholder="Stone Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {stoneTypes.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type === "all" ? "All Stone Types" : type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="border rounded-lg max-h-[200px] overflow-y-auto">
-                  {isLoadingSKUs ? (
-                    <div className="flex items-center justify-center p-4">
-                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                      <span>Loading SKUs...</span>
+                      <div className="w-full">
+                        <div className="border rounded-lg max-h-[300px] overflow-y-auto w-full">
+                          {isLoadingSKUs ? (
+                            <div className="flex items-center justify-center p-4">
+                              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                              <span>Loading SKUs...</span>
+                            </div>
+                          ) : skuError ? (
+                            <div className="text-center py-4 text-muted-foreground">
+                              <AlertTriangle className="h-6 w-6 mx-auto mb-2" />
+                              <p>{skuError}</p>
+                            </div>
+                          ) : (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="w-[60px]">Image</TableHead>
+                                  <TableHead>SKU ID</TableHead>
+                                  <TableHead>Name</TableHead>
+                                  <TableHead>Category</TableHead>
+                                  <TableHead>Collection</TableHead>
+                                  <TableHead className="text-right">Add</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {filteredSKUs.map((sku) => {
+                                  const isSelected = isSkuSelected(sku.id)
+                                  return (
+                                    <TableRow key={sku.id} className={isSelected ? "sku-row-selected" : ""}>
+                                      <TableCell>
+                                        <div
+                                          className="w-8 h-8 rounded-md overflow-hidden cursor-pointer"
+                                          onClick={() => openImageDialog(sku.image)}
+                                        >
+                                          <img
+                                            src={sku.image || "/placeholder.svg?height=40&width=40&text=SKU"}
+                                            alt={sku.name}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="font-medium">{sku.id}</TableCell>
+                                      <TableCell>{sku.name}</TableCell>
+                                      <TableCell>{sku.category}</TableCell>
+                                      <TableCell>{sku.collection || "-"}</TableCell>
+                                      <TableCell className="text-right">
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => addSKU(sku)}
+                                          disabled={isSubmitting || isSelected}
+                                        >
+                                          <Plus className="h-4 w-4" />
+                                          <span className="sr-only">Add</span>
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  )
+                                })}
+                                {filteredSKUs.length === 0 && (
+                                  <TableRow>
+                                    <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                                      No SKUs found
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  ) : skuError ? (
-                    <div className="text-center py-4 text-muted-foreground">
-                      <AlertTriangle className="h-6 w-6 mx-auto mb-2" />
-                      <p>{skuError}</p>
+                  </TabsContent>
+
+                  <TabsContent value="create-sku">
+                    <div className="p-4 space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        Can't find the SKU you need? Create a new SKU and it will be automatically added to your order
+                        and the database.
+                      </p>
+
+                      <div className="flex justify-center py-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setNewSKUSheetOpen(true)}
+                          disabled={isSubmitting}
+                          className="w-[200px]"
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Create a new SKU
+                        </Button>
+                      </div>
                     </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[60px]">Image</TableHead>
-                          <TableHead>SKU ID</TableHead>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Category</TableHead>
-                          <TableHead className="text-right">Add</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredSKUs.map((sku) => (
-                          <TableRow key={sku.id}>
-                            <TableCell>
-                              <div
-                                className="w-8 h-8 rounded-md overflow-hidden cursor-pointer"
-                                onClick={() => openImageDialog(sku.image)}
-                              >
-                                <img
-                                  src={sku.image || "/placeholder.svg?height=40&width=40&text=SKU"}
-                                  alt={sku.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-medium">{sku.id}</TableCell>
-                            <TableCell>{sku.name}</TableCell>
-                            <TableCell>{sku.category}</TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => addSKU(sku)}
-                                disabled={isSubmitting}
-                              >
-                                <Plus className="h-4 w-4" />
-                                <span className="sr-only">Add</span>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        {filteredSKUs.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                              No SKUs found
-                            </TableCell>
-                          </TableRow>
+                  </TabsContent>
+
+                  <TabsContent value="bulk-assign">
+                    <div className="p-4 space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        Quickly add multiple SKUs by entering a list of SKU IDs and quantities in the format below.
+                      </p>
+
+                      <div className="bg-muted/20 p-3 rounded-md">
+                        <p className="text-sm font-medium mb-2">Format Instructions:</p>
+                        <code className="text-xs block mb-2">SKU-001:2, SKU-002:1, SKU-003:3</code>
+                        <p className="text-xs text-muted-foreground">
+                          Enter each SKU ID followed by a colon and the quantity, separated by commas.
+                        </p>
+                      </div>
+
+                      {bulkAssignError && (
+                        <Alert variant="destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>{bulkAssignError}</AlertDescription>
+                        </Alert>
+                      )}
+
+                      {bulkAssignSuccess && (
+                        <Alert variant="success" className="bg-green-50 text-green-800 border-green-200">
+                          <CheckCircle className="h-4 w-4" />
+                          <AlertDescription>{bulkAssignSuccess}</AlertDescription>
+                        </Alert>
+                      )}
+
+                      <div className="space-y-2">
+                        <Label htmlFor="bulkSkuInput">Enter SKU IDs and Quantities</Label>
+                        <Textarea
+                          id="bulkSkuInput"
+                          placeholder="SKU-001:2, SKU-002:1, SKU-003:3"
+                          value={bulkSkuInput}
+                          onChange={(e) => setBulkSkuInput(e.target.value)}
+                          className="min-h-[100px]"
+                          disabled={isBulkProcessing}
+                        />
+                      </div>
+
+                      <Button
+                        type="button"
+                        onClick={processBulkSkus}
+                        disabled={isBulkProcessing || !bulkSkuInput.trim()}
+                        className="w-full"
+                      >
+                        {isBulkProcessing ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          "Add SKUs to Order"
                         )}
-                      </TableBody>
-                    </Table>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-center">
-                  <div className="flex items-center gap-2">
-                    <Separator className="w-16" />
-                    <span className="text-xs text-muted-foreground">OR</span>
-                    <Separator className="w-16" />
-                  </div>
-                </div>
-
-                <div className="flex justify-center">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setNewSKUSheetOpen(true)}
-                    disabled={isSubmitting}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create a new SKU
-                  </Button>
-                </div>
+                      </Button>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             </div>
 
-            <SheetFooter className="flex flex-col space-y-4 mt-6">
+            <SheetFooter className="flex justify-end mt-6">
               <Button
                 type="submit"
                 disabled={
@@ -888,26 +1094,6 @@ export function NewOrderSheet({
                   </>
                 ) : (
                   <>{editOrder ? "Update Order" : "Create Order"}</>
-                )}
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setIsDraft(true)
-                  handleSubmit({ preventDefault: () => {} })
-                }}
-                className="w-full"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  "Save as Draft"
                 )}
               </Button>
             </SheetFooter>

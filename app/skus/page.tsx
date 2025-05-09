@@ -1,5 +1,7 @@
 "use client"
 
+import "@/styles/animations.css"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -28,6 +30,7 @@ export default function SKUsPage() {
   const [actionInProgress, setActionInProgress] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
+  const [newlyAddedSkuIds, setNewlyAddedSkuIds] = useState<string[]>([])
 
   useEffect(() => {
     async function loadSkus() {
@@ -123,6 +126,15 @@ export default function SKUsPage() {
     // Add the new SKU (or array of SKUs) to the state
     // Since createSkuBatch returns an array, handle it appropriately
     const skusToAdd = Array.isArray(createdSkuFromBatch) ? createdSkuFromBatch : [createdSkuFromBatch]
+
+    // Track newly added SKU IDs
+    const newIds = skusToAdd.map((sku) => sku.sku_id)
+    setNewlyAddedSkuIds(newIds)
+
+    // Clear after animation duration
+    setTimeout(() => {
+      setNewlyAddedSkuIds([])
+    }, 5000)
 
     setSkus((prevSkus) => {
       // Sort the incoming skusToAdd to maintain newest-first order
@@ -297,7 +309,7 @@ export default function SKUsPage() {
           </Button>
         </div>
       ),
-      className: "text-right",
+      className: "text-left",
     },
   ]
 
@@ -422,6 +434,7 @@ export default function SKUsPage() {
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={setCurrentPage}
+          rowClassName={(row) => (newlyAddedSkuIds.includes(row.id) ? "highlight-new-sku" : "")}
         />
       </main>
 

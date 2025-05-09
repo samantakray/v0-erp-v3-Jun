@@ -3,8 +3,8 @@
 import type React from "react"
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableCaption } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { RefreshCcw, ChevronLeft, ChevronRight } from 'lucide-react'
-import { Loader2 } from 'lucide-react' // For loading spinner
+import { RefreshCcw, ChevronLeft, ChevronRight } from "lucide-react"
+import { Loader2 } from "lucide-react" // For loading spinner
 import { cn } from "@/lib/utils" // Utility for conditional classNames (common in Shadcn/UI)
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -23,9 +23,10 @@ interface DataTableProps<T> {
   error?: string | null
   onRefresh?: () => void
   caption?: string
-  currentPage: number
-  totalPages: number
-  onPageChange: (page: number) => void
+  currentPage?: number
+  totalPages?: number
+  onPageChange?: (page: number) => void
+  rowClassName?: (row: T) => string // Add this line
 }
 
 export function DataTable<T extends { id: string }>({
@@ -38,6 +39,7 @@ export function DataTable<T extends { id: string }>({
   currentPage,
   totalPages,
   onPageChange,
+  rowClassName,
 }: DataTableProps<T>) {
   return (
     <div className="relative w-full rounded-lg border border-gray-200 shadow-sm bg-white">
@@ -69,7 +71,7 @@ export function DataTable<T extends { id: string }>({
       <Table>
         {/* Caption moved inside Table component where it belongs */}
         {caption && <TableCaption className="text-gray-500 text-sm mt-2">{caption}</TableCaption>}
-        
+
         <TableHeader>
           <TableRow className="bg-gray-50">
             {columns.map((col) => (
@@ -103,8 +105,11 @@ export function DataTable<T extends { id: string }>({
               </TableCell>
             </TableRow>
           ) : (
-            data.map((row) => (
-              <TableRow key={row.id} className="hover:bg-gray-50 transition-colors duration-150">
+            data.map((row, rowIndex) => (
+              <TableRow
+                key={row.id}
+                className={cn("hover:bg-gray-50 transition-colors duration-150", rowClassName ? rowClassName(row) : "")} // Add this className
+              >
                 {columns.map((col) => (
                   <TableCell key={col.header} className={cn("py-3", col.className)}>
                     {col.render ? col.render(row) : (row as any)[col.accessor]}

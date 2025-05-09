@@ -17,6 +17,15 @@ import { createOrder, updateOrder, deleteOrder } from "@/app/actions/order-actio
 import { logger } from "@/lib/logger"
 import type { Order } from "@/types"
 import { ORDER_STATUS } from "@/constants/job-workflow"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { OrderConfirmationDialog } from "@/components/order-confirmation-dialog"
 
 export default function OrdersPage() {
   const searchParams = useSearchParams()
@@ -34,6 +43,10 @@ export default function OrdersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
+  const [deleteOrderId, setDeleteOrderId] = useState<string | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [showOrderConfirmation, setShowOrderConfirmation] = useState(false)
+  const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null)
 
   // Fetch orders
   useEffect(() => {
@@ -136,6 +149,10 @@ export default function OrdersPage() {
         }
         setOrders((prevOrders) => [...prevOrders, newOrder])
         setActionSuccess(`Order ${result.orderId} created successfully`)
+
+        // Set the confirmed order and show the confirmation dialog
+        setConfirmedOrder(newOrder)
+        setShowOrderConfirmation(true)
       }
 
       setNewOrderOpen(false)
@@ -151,11 +168,14 @@ export default function OrdersPage() {
     }
   }
 
-  const handleDeleteOrder = async (orderId: string) => {
-    if (!confirm(`Are you sure you want to delete order ${orderId}?`)) {
-      return
-    }
+  // This function is called when the delete button is clicked
+  const handleDeleteOrder = (orderId: string) => {
+    setDeleteOrderId(orderId)
+    setIsDeleteDialogOpen(true)
+  }
 
+  // This function is called when deletion is confirmed in the dialog
+  const handleDeleteOrderConfirmed = async (orderId: string) => {
     setIsSubmitting(true)
     setActionError(null)
     setActionSuccess(null)
@@ -183,6 +203,14 @@ export default function OrdersPage() {
       })
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleViewOrderDetails = () => {
+    if (confirmedOrder) {
+      setSelectedOrderId(confirmedOrder.id)
+      setIsOrderDetailOpen(true)
+      setShowOrderConfirmation(false)
     }
   }
 
@@ -253,7 +281,7 @@ export default function OrdersPage() {
     {
       header: "Order Actions",
       accessor: "id",
-      className: "text-right",
+      className: "text-left",
       render: (row) => (
         <div className="flex justify-end gap-2">
           <Button
@@ -476,6 +504,14 @@ export default function OrdersPage() {
         </div>
       </main>
 
+      {/* Order Confirmation Dialog */}
+      <OrderConfirmationDialog
+        order={confirmedOrder}
+        open={showOrderConfirmation}
+        onOpenChange={setShowOrderConfirmation}
+        onViewDetails={handleViewOrderDetails}
+      />
+
       {/* Order Detail Sheet */}
       <OrderDetailSheet
         orderId={selectedOrderId}
@@ -492,6 +528,42 @@ export default function OrdersPage() {
         editOrder={editOrder}
         isSubmitting={isSubmitting}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete order {deleteOrderId}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (deleteOrderId) {
+                  handleDeleteOrderConfirmed(deleteOrderId)
+                }
+                setIsDeleteDialogOpen(false)
+              }}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
