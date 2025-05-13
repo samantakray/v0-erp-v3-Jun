@@ -476,3 +476,94 @@ export async function deleteOrder(orderId: string) {
     return { success: false, error: "An unexpected error occurred" }
   }
 }
+
+/**
+ * Predicts the next order number based on the most recent order
+ * This is used for UI display only and doesn't create an actual order
+ * @returns Object containing the predicted order number
+ */
+export async function getPredictedNextOrderNumber() {
+  const startTime = performance.now()
+  logger.info(`getPredictedNextOrderNumber called`)
+
+  // Check if we're using mocks
+  const useMocks = process.env.NEXT_PUBLIC_USE_MOCKS === "true"
+  if (useMocks) {
+    // In mock mode, return a mock prediction
+    const duration = performance.now() - startTime
+    logger.info(`getPredictedNextOrderNumber completed with mock data`, {
+      data: { predictedOrderId: "O-XXXX" },
+      duration,
+    })
+    return { success: true, predictedOrderId: "O-XXXX" }
+  }
+
+  // Create Supabase client with service role key for server actions
+  const supabase = createServiceClient()
+
+  try {
+    // Fetch the most recent order from Supabase
+    const { data, error } = await supabase
+      .from("orders")
+      .select("order_id")
+      .order("created_at", { ascending: false })
+      .limit(1)
+
+    if (error) {
+      const duration = performance.now() - startTime
+      logger.error(`Error fetching most recent order from Supabase`, {
+        error,
+        duration,
+      })
+      return { success: false, error: error.message, predictedOrderId: null }
+    }
+
+    // If no orders exist, return a default starting number
+    if (!data || data.length === 0) {
+      const duration = performance.now() - startTime
+      logger.info(`No existing orders found, returning default starting order ID`, { duration })
+      return {
+        success: true,
+        predictedOrderId: "O-0001",
+      }
+    }
+
+    // Extract the numerical part (assuming format O-####)
+    const latestOrderId = data[0].order_id
+    const match = latestOrderId.match(/O-(\d+)$/)
+
+    if (!match) {
+      logger.warn(`Could not extract numerical part from order ID: ${latestOrderId}`)
+      return {
+        success: true,
+        predictedOrderId: "O-0001",
+      }
+    }
+
+    // Increment by 1
+    const currentNum = Number.parseInt(match[1], 10)
+    const nextNum = currentNum + 1
+    const predictedOrderId = `O-${String(nextNum).padStart(4, "0")}`
+
+    const duration = performance.now() - startTime
+    logger.info(`getPredictedNextOrderNumber completed successfully - Predicted order ID: ${predictedOrderId}`, {
+      data: {
+        latestOrderId,
+        predictedOrderId,
+      },
+      duration,
+    })
+
+    return {
+      success: true,
+      predictedOrderId,
+    }
+  } catch (error) {
+    const duration = performance.now() - startTime
+    logger.error(`Unexpected error in getPredictedNextOrderNumber`, {
+      error: error instanceof Error ? error.message : String(error),
+      duration,
+    })
+    return { success: false, error: "An unexpected error occurred", predictedOrderId: null }
+  }
+}

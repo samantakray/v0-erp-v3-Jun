@@ -15,6 +15,91 @@ export type SkuBatchItem = Omit<SKU, "id" | "createdAt"> & {
 }
 
 /**
+ * Gets the most recent SKU ID from the database to predict the next sequence number
+ * This is used for UI display only and doesn't consume a sequence number
+ * @returns Object containing the predicted next number or null if no SKUs exist
+ */
+export async function getPredictedNextSkuNumber() {
+  const startTime = performance.now()
+  logger.info(`getPredictedNextSkuNumber called`)
+
+  // Create Supabase client with service role key for server actions
+  const supabase = createServiceClient()
+
+  try {
+    // Fetch the most recent SKU from Supabase
+    const { data, error } = await supabase
+      .from("skus")
+      .select("sku_id")
+      .order("created_at", { ascending: false })
+      .limit(1)
+
+    if (error) {
+      const duration = performance.now() - startTime
+      logger.error(`Error fetching most recent SKU from Supabase`, {
+        error,
+        duration,
+      })
+      return { success: false, error: error.message, predictedNumber: null }
+    }
+
+    // If no SKUs exist, return a default starting number
+    if (!data || data.length === 0) {
+      const duration = performance.now() - startTime
+      logger.info(`No existing SKUs found, returning default starting number`, { duration })
+      return {
+        success: true,
+        predictedNumber: 1,
+        formattedNumber: "0001",
+      }
+    }
+
+    // Extract the numerical part (assuming format XX-####)
+    const latestSkuId = data[0].sku_id
+    const match = latestSkuId.match(/-(\d+)$/)
+
+    if (!match) {
+      logger.warn(`Could not extract numerical part from SKU ID: ${latestSkuId}`)
+      return {
+        success: true,
+        predictedNumber: 1,
+        formattedNumber: "0001",
+      }
+    }
+
+    // Increment by 1
+    const currentNum = Number.parseInt(match[1], 10)
+    const nextNum = currentNum + 1
+
+    const duration = performance.now() - startTime
+    logger.info(
+      `getPredictedNextSkuNumber completed successfully - Predicted number: ${nextNum} (formatted: ${String(nextNum).padStart(4, "0")})`,
+      {
+        data: {
+          latestSkuId,
+          predictedNumber: nextNum,
+          formattedNumber: String(nextNum).padStart(4, "0"),
+        },
+        duration,
+      },
+    )
+
+    return {
+      success: true,
+      predictedNumber: nextNum,
+      formattedNumber: String(nextNum).padStart(4, "0"),
+    }
+  } catch (error) {
+    const duration = performance.now() - startTime
+    logger.error(`Unexpected error in getPredictedNextSkuNumber`, {
+      error: error instanceof Error ? error.message : String(error),
+      duration,
+    })
+    return { success: false, error: "An unexpected error occurred", predictedNumber: null }
+  }
+}
+
+/**
  * Gets the next sequential number for SKU generation
  * This will be used to construct SKU IDs for all variants in a batch
  * @returns Object containing the next sequential number and its formatted version
@@ -46,10 +131,16 @@ export async function getNextSkuNumber() {
     }
 
     const duration = performance.now() - startTime
-    logger.info(`getNextSkuNumber completed successfully`, {
-      data: { nextNumber },
-      duration,
-    })
+    logger.info(
+      `getNextSkuNumber completed successfully - Generated number: ${nextNumber} (formatted: ${String(nextNumber).padStart(4, "0")})`,
+      {
+        data: {
+          nextNumber,
+          formattedNumber: String(nextNumber).padStart(4, "0"),
+        },
+        duration,
+      },
+    )
 
     return {
       success: true,

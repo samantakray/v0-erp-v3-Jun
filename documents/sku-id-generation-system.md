@@ -4,14 +4,15 @@ This document provides a comprehensive overview of the SKU ID generation system 
 
 ## Overview
 
-The SKU ID generation system creates unique identifiers for jewelry items based on their category, sequential number, and other attributes. The system was refactored to consolidate category mappings and improve code maintainability.
+The SKU ID generation system creates unique identifiers for jewelry items based on their category, sequential number, and other attributes. The system was refactored to consolidate category mappings and improve code maintainability. Recently, it was further enhanced to address sequence number consumption issues.
 
 ## Files Modified
 
 1. `constants/categories.ts` - Added helper function for category code lookup
-2. `components/new-sku-sheet.tsx` - Updated to use centralized category codes
+2. `components/new-sku-sheet.tsx` - Updated to use centralized category codes and improved sequence number handling
 3. `lib/api-service.ts` - Fixed SKU data mapping to include size field
 4. `app/skus/page.tsx` - Enhanced size field display in the DataTable
+5. `app/actions/sku-sequence-actions.ts` - Added prediction functionality and enhanced logging
 
 ## Implementation Details
 
@@ -128,6 +129,109 @@ The size field was not displaying correctly in the SKUs DataTable, showing only 
    }
    \`\`\`
 
+### 3. Sequence Number Consumption Issue
+
+#### Previous Implementation
+
+In the previous implementation, the SKU ID generation process worked as follows:
+
+1. When the new-sku-sheet opened, `getNextSkuNumber()` was called immediately
+2. This called the Supabase RPC function `get_next_sku_sequence_value` which incremented the sequence
+3. The sequence number was consumed even if the user closed the form without creating SKUs
+4. This created gaps in the sequence (e.g., 111, 112, 113) when forms were abandoned
+
+The technical limitation was that PostgreSQL sequences don't have a mechanism to "return" or "recycle" a value once it's been retrieved with `nextval()`.
+
+#### Root Cause Analysis
+
+The issue stemmed from how database sequences work in combination with our application flow:
+
+1. **Immediate Sequence Consumption**: When `getNextSkuNumber()` was called, it executed the Supabase RPC function `get_next_sku_sequence_value`, which used PostgreSQL's `nextval()` function. Once `nextval()` is called, the sequence value is consumed permanently - this is by design in PostgreSQL.
+
+2. **Early Sequence Retrieval**: Our application called `getNextSkuNumber()` immediately when the form opened in the `useEffect` hook, rather than when the user actually submitted the form.
+
+3. **No Sequence Recycling**: PostgreSQL sequences don't have a built-in mechanism to "return" or "recycle" a value once it's been retrieved with `nextval()`.
+
+#### Current Implementation
+
+To address this issue, we implemented a prediction-based approach:
+
+1. When the new-sku-sheet opens, `getPredictedNextSkuNumber()` is called instead
+2. This function fetches the most recent SKU from the database and predicts the next number
+3. The prediction is used for display purposes only
+4. `getNextSkuNumber()` is only called when the user clicks "Create SKU"
+5. This ensures sequence numbers are only consumed when SKUs are actually created
+
+#### Prediction Algorithm
+
+1. Fetch the most recent SKU from the database
+2. Extract the numerical part from its SKU ID
+3. Increment by 1 to predict the next number
+4. Format with leading zeros
+5. Handle edge cases (no SKUs, invalid format)
+
+\`\`\`typescript
+export async function getPredictedNextSkuNumber() {
+  // Create Supabase client with service role key for server actions
+  const supabase = createServiceClient()
+
+  try {
+    // Fetch the most recent SKU from Supabase
+    const { data, error } = await supabase
+      .from("skus")
+      .select("sku_id")
+      .order("created_at", { ascending: false })
+      .limit(1)
+
+    // If no SKUs exist, return a default starting number
+    if (!data || data.length === 0) {
+      return { 
+        success: true, 
+        predictedNumber: 1,
+        formattedNumber: "0001" 
+      }
+    }
+
+    // Extract the numerical part (assuming format XX-####)
+    const latestSkuId = data[0].sku_id
+    const match = latestSkuId.match(/-(\d+)$/)
+
+    if (!match) {
+      return { 
+        success: true, 
+        predictedNumber: 1,
+        formattedNumber: "0001" 
+      }
+    }
+
+    // Increment by 1
+    const currentNum = parseInt(match[1], 10)
+    const nextNum = currentNum + 1
+
+    return {
+      success: true,
+      predictedNumber: nextNum,
+      formattedNumber: String(nextNum).padStart(4, "0"),
+    }
+  } catch (error) {
+    return { success: false, error: "An unexpected error occurred", predictedNumber: null }
+  }
+}
+\`\`\`
+
+#### Benefits of the New Approach
+
+1. **Sequence Integrity**: Eliminates gaps in the sequence caused by abandoned forms
+2. **Resource Efficiency**: Reduces unnecessary database calls when forms are opened but not submitted
+3. **Minimal UI Changes**: Maintains the existing user experience with minimal visual changes
+4. **Predictability**: Users still see meaningful SKU ID previews in the form
+
+#### Edge Cases Handled
+
+1. **First-Time Use**: If there are no SKUs in the database, defaults to "0001"
+2. **Invalid SKU Format**: If the latest SKU ID doesn't match the expected format, defaults to "0001"
+3. **Race Conditions**: If multiple users create SKUs simultaneously, each gets the correct next sequence number
+
 ## Database Schema
 
 The SKU ID generation relies on the following database schema elements:
@@ -172,6 +276,27 @@ Examples:
 - `NK-0001` - First Necklace
 - `RG-0042` - 42nd Ring
 
+## User Experience
+
+### Previous User Experience
+1. User clicks the 'NEW SKU' button on the app/skus page
+2. The form opens the new-sku-sheet component
+3. At that moment, the system calls `getNextSkuNumber()` which triggers the backend sequence function and consumes a sequence number
+4. The user can add multiple SKU variants to the form
+5. If the user closes the form without creating SKUs, the sequence number is wasted
+6. If the user creates SKUs, they're created with the pre-consumed sequence number
+
+### Current User Experience
+1. User clicks the 'NEW SKU' button on the app/skus page
+2. The form opens the new-sku-sheet component
+3. The system predicts the next sequence number based on existing SKUs
+4. The predicted number is displayed in the form with an indicator
+5. The user can add multiple SKU variants to the form
+6. When the user clicks "Create SKU":
+   - The system gets the actual next sequence number
+   - SKUs are created with the actual number
+   - The form closes and the new SKUs appear on the app/skus page
+
 ## Bugs and Solutions
 
 ### Bug 1: Category Code Duplication
@@ -188,6 +313,14 @@ Examples:
 
 **Solution**: Updated the `fetchSkus` function to include the size field and properly convert it to a number. Enhanced the DataTable column rendering to display the size with appropriate units.
 
+### Bug 3: Sequence Number Consumption
+
+**Issue**: Opening and closing the new-sku-sheet without creating SKUs consumed sequence numbers, creating gaps in the sequence.
+
+**Root Cause**: The application called `getNextSkuNumber()` immediately when the form opened, consuming a sequence number even if no SKUs were created.
+
+**Solution**: Implemented a prediction-based approach that only consumes sequence numbers when SKUs are actually created.
+
 ## Best Practices
 
 1. **Single Source of Truth**: Keep all category-related constants and mappings in one place (`constants/categories.ts`).
@@ -200,6 +333,10 @@ Examples:
 
 5. **UI Enhancement**: Display units alongside numeric values for better user experience.
 
+6. **Resource Efficiency**: Only consume database resources (like sequence numbers) when necessary.
+
+7. **Predictive UI**: Use predictions to provide a good user experience without consuming resources unnecessarily.
+
 ## Future Improvements
 
 1. Consider implementing a more robust SKU generation system that can handle additional attributes.
@@ -209,3 +346,5 @@ Examples:
 3. Implement a history tracking system for SKU changes.
 
 4. Add the ability to customize the SKU ID format based on business requirements.
+
+5. Consider implementing a reservation system for high-concurrency environments where prediction might not be sufficient.

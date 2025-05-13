@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -20,7 +20,8 @@ import {
   SIZE_UNITS,
   getCategoryCode,
 } from "@/constants/categories"
-import { getNextSkuNumber, createSkuBatch } from "@/app/actions/sku-sequence-actions"
+import { getNextSkuNumber, createSkuBatch, getPredictedNextSkuNumber } from "@/app/actions/sku-sequence-actions"
+import { logger } from "@/lib/logger"
 
 export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   const [multipleSkus, setMultipleSkus] = useState([])
@@ -28,11 +29,16 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   const [formattedNumber, setFormattedNumber] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const skusCreatedRef = useRef(false)
+  const [isPredictedNumber, setIsPredictedNumber] = useState(true)
 
-  // Initialize the SKU variants and fetch the next sequential number when the sheet is opened
+  // Initialize the SKU variants and fetch the predicted next number when the sheet is opened
   useEffect(() => {
     if (open) {
       setError(null)
+      // Reset the skusCreated flag when the sheet is opened
+      skusCreatedRef.current = false
+      setIsPredictedNumber(true)
 
       // Initialize with default SKU
       setMultipleSkus([
@@ -48,24 +54,36 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
         },
       ])
 
-      // Fetch the next sequential number
-      fetchNextSequentialNumber()
+      // Fetch the predicted next number
+      fetchPredictedNextNumber()
     }
   }, [open])
 
-  // Fetch the next sequential number from the server
-  const fetchNextSequentialNumber = async () => {
+  // Custom handler for sheet open/close events
+  const handleOpenChange = (newOpen: boolean) => {
+    // Only log when the sheet is being closed (going from open to closed)
+    if (open === true && newOpen === false && !skusCreatedRef.current) {
+      logger.info("SKU form manually closed by user without creating SKUs")
+    }
+
+    // Call the original onOpenChange to maintain expected behavior
+    onOpenChange(newOpen)
+  }
+
+  // Fetch the predicted next number from the server
+  const fetchPredictedNextNumber = async () => {
     setIsLoading(true)
     try {
-      const result = await getNextSkuNumber()
+      const result = await getPredictedNextSkuNumber()
       if (result.success) {
-        setNextSequentialNumber(result.nextNumber)
+        setNextSequentialNumber(result.predictedNumber)
         setFormattedNumber(result.formattedNumber)
+        setIsPredictedNumber(true)
       } else {
-        setError(result.error || "Failed to fetch next SKU number")
+        setError(result.error || "Failed to predict next SKU number")
       }
     } catch (err) {
-      setError("An unexpected error occurred while fetching the next SKU number")
+      setError("An unexpected error occurred while predicting the next SKU number")
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -92,8 +110,8 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   }
 
   const handleCreateSkusBatch = async () => {
-    if (multipleSkus.length === 0 || !formattedNumber) {
-      setError("Cannot create SKUs: No variants or sequential number not fetched.")
+    if (multipleSkus.length === 0) {
+      setError("Cannot create SKUs: No variants added.")
       return
     }
 
@@ -101,22 +119,37 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
     setError(null)
 
     try {
-      // Prepare SKUs with generated SKU IDs
-      const skusToCreate = multipleSkus.map((sku) => ({
-        skuId: generateSkuIdPreview(sku.category),
-        name: `${sku.goldType} ${sku.category}${sku.stoneType !== STONE_TYPE.NONE ? ` with ${sku.stoneType}` : ""}`,
-        category: sku.category,
-        collection: sku.collection,
-        size: Number(sku.size), // Convert to number
-        goldType: sku.goldType,
-        stoneType: sku.stoneType,
-        diamondType: sku.diamondType,
-        weight: sku.weight,
-        image: sku.image ? URL.createObjectURL(sku.image) : "/placeholder.svg?height=80&width=80",
-      }))
+      // Get the actual next sequence number at submission time
+      const sequenceResult = await getNextSkuNumber()
+      if (!sequenceResult.success) {
+        setError(sequenceResult.error || "Failed to fetch next SKU number")
+        setIsLoading(false)
+        return
+      }
 
-      // Add logging statement to verify frontend data
-      console.log("Sending to backend:", skusToCreate)
+      // Update the state with the actual number
+      setNextSequentialNumber(sequenceResult.nextNumber)
+      setFormattedNumber(sequenceResult.formattedNumber)
+      setIsPredictedNumber(false)
+
+      // Prepare SKUs with generated SKU IDs using the actual number
+      const skusToCreate = multipleSkus.map((sku) => {
+        const prefix = getCategoryCode(sku.category) || "OO"
+        const skuId = `${prefix}-${sequenceResult.formattedNumber}`
+
+        return {
+          skuId,
+          name: `${sku.goldType} ${sku.category}${sku.stoneType !== STONE_TYPE.NONE ? ` with ${sku.stoneType}` : ""}`,
+          category: sku.category,
+          collection: sku.collection,
+          size: Number(sku.size),
+          goldType: sku.goldType,
+          stoneType: sku.stoneType,
+          diamondType: sku.diamondType,
+          weight: sku.weight,
+          image: sku.image ? URL.createObjectURL(sku.image) : "/placeholder.svg?height=80&width=80",
+        }
+      })
 
       // Call the batch insertion server action
       const backendResponse = await createSkuBatch(skusToCreate)
@@ -124,15 +157,12 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
       if (backendResponse.success && backendResponse.skus) {
         console.log("SkuIDs inserted successfully via batch action!", backendResponse.skus)
 
-        // --- CRITICAL CHANGE HERE ---
-        // ONLY update the parent component's state.
-        // DO NOT call createSku here.
+        // Set the flag to indicate SKUs were created successfully
+        skusCreatedRef.current = true
+
         backendResponse.skus.forEach((insertedSku) => {
-          // Pass the full data returned from the backend (including the db 'id', 'created_at', etc.)
-          // if the parent component needs it.
           onSKUCreated(insertedSku)
         })
-        // --- END CRITICAL CHANGE ---
 
         onOpenChange(false) // Close the sheet
       } else {
@@ -170,7 +200,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   }, {})
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       {/* Increased width for the sheet content */}
       <SheetContent className="sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl overflow-y-auto">
         <SheetHeader>
@@ -200,11 +230,14 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                 <AlertDescription>
                   {nextSequentialNumber ? (
                     <>
-                      All SKUs in this batch will share the sequential number <strong>{formattedNumber}</strong>. The
-                      full SKU ID will be generated based on the category (e.g., RG-{formattedNumber} for Ring).
+                      All SKUs in this batch will share the sequential number <strong>{formattedNumber}</strong>
+                      {isPredictedNumber && (
+                        <span className="text-muted-foreground"> (predicted based on existing SKUs)</span>
+                      )}
+                      . The full SKU ID will be generated based on the category (e.g., RG-{formattedNumber} for Ring).
                     </>
                   ) : (
-                    "Loading next sequential number..."
+                    "Predicting next sequential number..."
                   )}
                 </AlertDescription>
               </Alert>

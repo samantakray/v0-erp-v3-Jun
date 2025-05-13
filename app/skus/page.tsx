@@ -417,7 +417,13 @@ export default function SKUsPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => setNewSKUSheetOpen(true)} disabled={actionInProgress}>
+            <Button
+              onClick={() => {
+                console.log("New SKU button clicked at", new Date().toISOString())
+                setNewSKUSheetOpen(true)
+              }}
+              disabled={actionInProgress}
+            >
               <Plus className="mr-2 h-4 w-4" />
               New SKU
             </Button>

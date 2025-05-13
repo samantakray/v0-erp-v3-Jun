@@ -19,6 +19,7 @@ import { GOLD_TYPE_CODES } from "@/constants/categories"
 import "@/styles/order-form.css"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
+import { getPredictedNextOrderNumber } from "@/app/actions/order-actions"
 
 // Default customer ID for "Exquisite Fine Jewellery" - replace with the actual ID from Phase 1
 const DEFAULT_CUSTOMER_ID = "8505d3dc-97c0-4636-a11d-1c8305ed07ac"
@@ -82,6 +83,9 @@ export function NewOrderSheet({
   const [customers, setCustomers] = useState([])
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(true)
   const [activeTab, setActiveTab] = useState("select-sku")
+
+  const [predictedOrderId, setPredictedOrderId] = useState<string>("")
+  const [isPredictingOrderId, setIsPredictingOrderId] = useState<boolean>(false)
 
   // For bulk assign functionality
   const [bulkSkuInput, setBulkSkuInput] = useState("")
@@ -367,31 +371,34 @@ export function NewOrderSheet({
     })
     setSelectedSKUs(updatedSKUs)
 
-    // If this is a production date update, check for delivery date warnings
-    if (field === "individualProductionDate") {
-      const updatedSku = updatedSKUs.find((sku) => sku.id === skuId)
-      if (updatedSku && updatedSku.individualDeliveryDate) {
-        const prodDate = new Date(value)
-        const delDate = new Date(updatedSku.individualDeliveryDate)
+    // Check for date warnings after updating
+    checkForDateWarnings(updatedSKUs)
+  }
 
-        // Set warning if delivery date is before production date for this SKU
-        if (delDate < prodDate) {
-          setDateWarning(true)
-        } else if (
-          !updatedSKUs.some((sku) => {
-            if (sku.individualProductionDate && sku.individualDeliveryDate) {
-              const p = new Date(sku.individualProductionDate)
-              const d = new Date(sku.individualDeliveryDate)
-              return d < p
-            }
-            return false
-          })
-        ) {
-          // If no SKUs have delivery before production, clear the warning
-          setDateWarning(false)
-        }
+  // Helper function to check for date warnings across all SKUs
+  const checkForDateWarnings = (skus = selectedSKUs) => {
+    // Check global dates
+    if (productionDueDate && deliveryDate) {
+      const prodDate = new Date(productionDueDate)
+      const delDate = new Date(deliveryDate)
+
+      if (delDate < prodDate) {
+        setDateWarning(true)
+        return
       }
     }
+
+    // Check individual SKU dates
+    const hasDateWarning = skus.some((sku) => {
+      if (sku.individualProductionDate && sku.individualDeliveryDate) {
+        const prodDate = new Date(sku.individualProductionDate)
+        const delDate = new Date(sku.individualDeliveryDate)
+        return delDate < prodDate
+      }
+      return false
+    })
+
+    setDateWarning(hasDateWarning)
   }
 
   // Get gold type acronym from full name
@@ -497,6 +504,23 @@ export function NewOrderSheet({
     }
   }
 
+  // Fetch the predicted next order number
+  const fetchPredictedOrderNumber = async () => {
+    setIsPredictingOrderId(true)
+    try {
+      logger.info("Fetching predicted order number for new order form")
+      const result = await getPredictedNextOrderNumber()
+      if (result.success && result.predictedOrderId) {
+        setPredictedOrderId(result.predictedOrderId)
+        logger.info(`Predicted order ID received: ${result.predictedOrderId}`)
+      }
+    } catch (err) {
+      logger.error("Error predicting next order number:", { error: err })
+    } finally {
+      setIsPredictingOrderId(false)
+    }
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
     setFormError(null)
@@ -509,6 +533,20 @@ export function NewOrderSheet({
 
     if (!isDraft && (!productionDueDate || !deliveryDate)) {
       setFormError("Production and delivery dates are required")
+      return
+    }
+
+    // Check for date warnings in individual SKUs
+    const hasDateWarning = selectedSKUs.some((sku) => {
+      const prodDate = sameDatesForAll.production ? new Date(productionDueDate) : new Date(sku.individualProductionDate)
+
+      const delDate = sameDatesForAll.delivery ? new Date(deliveryDate) : new Date(sku.individualDeliveryDate)
+
+      return delDate < prodDate
+    })
+
+    if (hasDateWarning) {
+      setFormError("Delivery Date cannot be set before the production date for one or more SKUs")
       return
     }
 
@@ -600,6 +638,26 @@ export function NewOrderSheet({
   const goldTypes = ["all", ...new Set(availableSKUs.map((sku) => sku.goldType).filter(Boolean))]
   const stoneTypes = ["all", ...new Set(availableSKUs.map((sku) => sku.stoneType).filter(Boolean))]
 
+  // Check for date warnings when relevant state changes
+  useEffect(() => {
+    checkForDateWarnings()
+  }, [productionDueDate, deliveryDate, selectedSKUs, sameDatesForAll])
+
+  // Fetch the predicted order number when the form opens
+  useEffect(() => {
+    if (open && !editOrder) {
+      logger.info("New order sheet opened, fetching predicted order ID")
+      fetchPredictedOrderNumber()
+    }
+  }, [open, editOrder])
+
+  // Log when the form is closed without submitting
+  useEffect(() => {
+    if (!open && predictedOrderId && !isSubmitting) {
+      logger.info(`New order sheet closed without submitting. Predicted order ID ${predictedOrderId} was not used.`)
+    }
+  }, [open, predictedOrderId, isSubmitting])
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -618,10 +676,24 @@ export function NewOrderSheet({
           )}
 
           {!editOrder && (
-            <Alert variant="info" className="mt-4">
-              <Info className="h-4 w-4" />
-              <AlertDescription>Order ID will be automatically generated by the system.</AlertDescription>
-            </Alert>
+            <>
+              <Alert variant="info" className="mt-4">
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  {isPredictingOrderId ? (
+                    "Predicting next order ID..."
+                  ) : predictedOrderId ? (
+                    <div className="text-lg font-semibold">Order ID: {predictedOrderId}</div>
+                  ) : (
+                    "Order ID will be automatically generated by the system."
+                  )}
+                </AlertDescription>
+              </Alert>
+
+              {predictedOrderId && !isPredictingOrderId && (
+                <p className="text-xs italic text-muted-foreground mt-1 ml-1">ID confirmed only on order creation</p>
+              )}
+            </>
           )}
 
           {editOrder && editOrder.orderType === "Customer" && editOrder.customerName && !customerId && (
@@ -872,6 +944,7 @@ export function NewOrderSheet({
                                 placeholder="Add remarks"
                                 maxLength={100}
                                 disabled={isSubmitting}
+                                style={{ "::placeholder": { fontSize: "0.75rem" } }}
                               />
                             </TableCell>
                             <TableCell className="text-right">
@@ -893,6 +966,7 @@ export function NewOrderSheet({
                   </div>
                 )}
               </div>
+              <p className="text-xs text-muted-foreground mt-2">Add SKUs to this order using the tabs below</p>
 
               <div className="mt-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
