@@ -47,7 +47,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
       setMultipleSkus([
         {
           category: "Necklace",
-          collection: COLLECTION_NAME.FLORAL, // Default collection
+          collection: COLLECTION_NAME.ROYAL, // Default collection
           size: DEFAULT_SIZES["Necklace"] ?? 0, // Add fallback for missing default size
           goldType: GOLD_TYPE.YELLOW_GOLD, // Use constant
           stoneType: STONE_TYPE.NONE, // Use constant
