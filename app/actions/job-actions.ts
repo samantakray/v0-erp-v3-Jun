@@ -4,22 +4,22 @@ import { createServiceClient } from "@/lib/supabaseClient"
 import { logger } from "@/lib/logger"
 import { revalidatePath } from "next/cache"
 import { JOB_STATUS, JOB_PHASE, JOB_STATUS_TO_ORDER_STATUS, ORDER_STATUS } from "@/constants/job-workflow"
+import type { StoneAllocation, DiamondAllocation } from "@/types" // Added DiamondAllocation
 
 // Type definitions for action parameters
 type StoneSelectionData = {
-  lotNumber: string
-  quantity: number
-  weight: number
-  remarks?: string
+  allocations: StoneAllocation[]
+  total_quantity: number
+  total_weight: number
+  timestamp: string
 }
 
 type DiamondSelectionData = {
-  lotNumber: string
-  karat: number
-  clarity: string
-  quantity: number
-  weight: number
-  remarks?: string
+  // Updated structure
+  allocations: DiamondAllocation[]
+  total_quantity: number
+  total_weight: number
+  timestamp: string
 }
 
 type ManufacturerData = {
@@ -36,13 +36,11 @@ type QCData = {
 
 export async function updateJobPhase(jobId: string, phase: string, data: any) {
   const startTime = performance.now()
-  logger.info(`updateJobPhase called`, { data: { jobId, phase } })
+  logger.info(`updateJobPhase called`, { data: { jobId, phase, payloadSize: JSON.stringify(data).length } })
 
-  // Create Supabase client with service role key for server actions
   const supabase = createServiceClient()
 
   try {
-    // Get job UUID from job_id
     logger.debug(`Fetching job UUID from Supabase`, { data: { jobId } })
     const { data: jobData, error: jobError } = await supabase
       .from("jobs")
@@ -50,7 +48,6 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
       .eq("job_id", jobId)
       .single()
 
-    // Add detailed logging to see if jobData is null or undefined
     logger.debug("Job data from query", {
       jobData: jobData || "No job data found",
       jobId,
@@ -67,7 +64,6 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
       return { success: false, error: "Job not found" }
     }
 
-    // Determine new status and phase based on current phase
     let newStatus = ""
     let newPhase = ""
 
@@ -86,7 +82,7 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
         break
       case JOB_PHASE.QUALITY_CHECK:
         newStatus = data.passed ? JOB_STATUS.QC_PASSED : JOB_STATUS.QC_FAILED
-        newPhase = data.passed ? JOB_PHASE.COMPLETE : JOB_PHASE.MANUFACTURER
+        newPhase = data.passed ? JOB_PHASE.COMPLETE : JOB_PHASE.MANUFACTURER // Or QC_FAILED phase if exists
         break
       case JOB_PHASE.COMPLETE:
         newStatus = JOB_STATUS.COMPLETED
@@ -101,65 +97,62 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
         return { success: false, error: "Invalid phase" }
     }
 
-    // Update job with new status, phase and data
     const updateData: any = {
       status: newStatus,
       current_phase: newPhase,
       updated_at: new Date().toISOString(),
     }
 
-    // Add phase-specific data
     if (phase === JOB_PHASE.STONE) {
-      updateData.stone_data = data
+      updateData.stone_data = data as StoneSelectionData
+      logger.info("Stone data to be saved:", { stone_data: updateData.stone_data })
     } else if (phase === JOB_PHASE.DIAMOND) {
-      updateData.diamond_data = data
+      updateData.diamond_data = data as DiamondSelectionData // Use the new type
+      logger.info("Diamond data to be saved:", { diamond_data: updateData.diamond_data })
     } else if (phase === JOB_PHASE.MANUFACTURER) {
       updateData.manufacturer_data = data
     } else if (phase === JOB_PHASE.QUALITY_CHECK) {
       updateData.qc_data = data
     }
 
-    // Update job
     logger.debug(`Updating job in Supabase`, {
       data: {
         jobId: jobData.id,
         newStatus,
         newPhase,
-        updateData,
+        updateDataSummary: {
+          ...updateData,
+          stone_data: updateData.stone_data ? "PRESENT" : "ABSENT",
+          diamond_data: updateData.diamond_data ? "PRESENT" : "ABSENT",
+        },
       },
     })
 
-    // 1. Wrap in try/catch to catch thrown exceptions
     try {
-      // 2. Ask Supabase to return the updated rows
       const { data: updatedRows, error: updateError } = await supabase
         .from("jobs")
         .update(updateData)
         .eq("id", jobData.id)
-        .select() // ← new
+        .select()
 
       if (updateError) {
-        // 3. Log full error object
         logger.error("Failed to write to jobs table", {
           jobId: jobData.id,
-          updateData,
+          updateDataAttempt: updateData, // Log the data that was attempted
           error: updateError,
         })
         return { success: false, error: "Failed to update job" }
       } else {
-        // 4. Log the returned rows to confirm what was written
         logger.info("Wrote to jobs table successfully", {
           jobId: jobData.id,
-          updatedRows, // ← new
+          updatedRows,
         })
       }
     } catch (err) {
-      // 5. Catch and log any unexpected exception
       logger.error("Supabase.update() threw an exception", { err })
       throw err
     }
 
-    // Add entry to job history
     logger.debug(`Adding job history entry in Supabase`, {
       data: { jobId: jobData.id, newStatus },
     })
@@ -168,7 +161,7 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
       job_id: jobData.id,
       status: newStatus,
       action: `Completed ${phase}`,
-      data: data,
+      data: data, // Store the full phase data in history
       created_at: new Date().toISOString(),
     })
 
@@ -179,12 +172,10 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
       })
     }
 
-    // NEW CODE: Update parent order status based on job statuses
+    // Update parent order status
     logger.debug(`Updating parent order status`, {
       data: { orderId: jobData.order_id },
     })
-
-    // Fetch all jobs for this order
     const { data: orderJobs, error: jobsError } = await supabase
       .from("jobs")
       .select("status")
@@ -196,24 +187,17 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
         error: jobsError,
       })
     } else {
-      // Determine new order status based on job statuses
       let newOrderStatus = ORDER_STATUS.NEW
-
-      // Check if any job is completed
       const allJobsCompleted = orderJobs.every((job) => job.status === JOB_STATUS.COMPLETED)
       if (allJobsCompleted && orderJobs.length > 0) {
         newOrderStatus = ORDER_STATUS.COMPLETED
-      }
-      // Check if any job has a status that maps to PENDING
-      else if (orderJobs.some((job) => JOB_STATUS_TO_ORDER_STATUS[job.status] === ORDER_STATUS.PENDING)) {
+      } else if (orderJobs.some((job) => JOB_STATUS_TO_ORDER_STATUS[job.status] === ORDER_STATUS.PENDING)) {
         newOrderStatus = ORDER_STATUS.PENDING
       }
 
-      // Update the order status
       logger.debug(`Setting order status to ${newOrderStatus}`, {
         data: { orderId: jobData.order_id, newOrderStatus },
       })
-
       const { error: orderUpdateError } = await supabase
         .from("orders")
         .update({
@@ -234,17 +218,18 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
       }
     }
 
-    // Get order_id for revalidation
     logger.debug(`Fetching order_id for revalidation`, {
       data: { orderId: jobData.order_id },
     })
-
     const { data: orderData } = await supabase.from("orders").select("order_id").eq("id", jobData.order_id).single()
 
-    // Revalidate paths
-    revalidatePath(`/orders/${orderData.order_id}/jobs/${jobId}`)
-    revalidatePath(`/orders/${orderData.order_id}/jobs`)
-    revalidatePath(`/orders`) // Also revalidate the orders list page
+    if (orderData?.order_id) {
+      revalidatePath(`/orders/${orderData.order_id}/jobs/${jobId}`)
+      revalidatePath(`/orders/${orderData.order_id}/jobs`)
+      revalidatePath(`/orders`)
+    } else {
+      logger.warn("Could not get order_id for revalidation path", { orderIdInternal: jobData.order_id })
+    }
 
     const duration = performance.now() - startTime
     logger.info(`updateJobPhase completed successfully`, {
@@ -274,11 +259,9 @@ export async function createJob(orderId: string, skuId: string, size?: string) {
   const startTime = performance.now()
   logger.info(`createJob called`, { data: { orderId, skuId, size } })
 
-  // Create Supabase client with service role key for server actions
   const supabase = createServiceClient()
 
   try {
-    // Get order UUID from order_id
     logger.debug(`Fetching order UUID from Supabase`, { data: { orderId } })
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
@@ -296,7 +279,6 @@ export async function createJob(orderId: string, skuId: string, size?: string) {
       return { success: false, error: "Order not found" }
     }
 
-    // Get SKU UUID from sku_id
     logger.debug(`Fetching SKU UUID from Supabase`, { data: { skuId } })
     const { data: skuData, error: skuError } = await supabase.from("skus").select("id").eq("sku_id", skuId).single()
 
@@ -310,7 +292,6 @@ export async function createJob(orderId: string, skuId: string, size?: string) {
       return { success: false, error: "SKU not found" }
     }
 
-    // Get count of existing jobs for this order to generate sequence number
     logger.debug(`Counting existing jobs for order`, { data: { orderId: orderData.id } })
     const { count, error: countError } = await supabase
       .from("jobs")
@@ -327,14 +308,12 @@ export async function createJob(orderId: string, skuId: string, size?: string) {
       return { success: false, error: "Failed to generate job ID" }
     }
 
-    // Generate job ID: J[Order Number]-[Sequence]
     const sequence = (count || 0) + 1
-    const jobId = `J${orderId.substring(1)}-${sequence}`
+    const newJobId = `J${orderId.substring(1)}-${sequence}`
 
-    // Insert new job
     logger.debug(`Creating new job in Supabase`, {
       data: {
-        jobId,
+        jobId: newJobId,
         orderId: orderData.id,
         skuId: skuData.id,
         size,
@@ -344,7 +323,7 @@ export async function createJob(orderId: string, skuId: string, size?: string) {
     const { data: newJob, error: insertError } = await supabase
       .from("jobs")
       .insert({
-        job_id: jobId,
+        job_id: newJobId,
         order_id: orderData.id,
         sku_id: skuData.id,
         size: size,
@@ -360,14 +339,13 @@ export async function createJob(orderId: string, skuId: string, size?: string) {
     if (insertError) {
       const duration = performance.now() - startTime
       logger.error(`Error creating job in Supabase`, {
-        data: { jobId },
+        data: { jobId: newJobId },
         error: insertError,
         duration,
       })
       return { success: false, error: "Failed to create job" }
     }
 
-    // Add entry to job history
     logger.debug(`Adding job history entry in Supabase`, {
       data: { jobId: newJob[0].id },
     })
@@ -379,16 +357,15 @@ export async function createJob(orderId: string, skuId: string, size?: string) {
       created_at: new Date().toISOString(),
     })
 
-    // Revalidate paths
     revalidatePath(`/orders/${orderId}/jobs`)
 
     const duration = performance.now() - startTime
     logger.info(`createJob completed successfully`, {
-      data: { orderId, skuId, jobId },
+      data: { orderId, skuId, jobId: newJobId },
       duration,
     })
 
-    return { success: true, jobId }
+    return { success: true, jobId: newJobId }
   } catch (error) {
     const duration = performance.now() - startTime
     logger.error(`Unexpected error in createJob`, {

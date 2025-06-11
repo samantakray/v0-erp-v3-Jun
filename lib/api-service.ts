@@ -2,7 +2,7 @@
 
 import { supabase } from "./supabaseClient"
 import { logger } from "./logger"
-import type { Order, SKU, Job } from "@/types"
+import type { Order, SKU, Job, StoneLotData, DiamondLotData } from "@/types" // Added DiamondLotData
 import { orders as mockOrders } from "@/mocks/orders"
 import { skus as mockSkus } from "@/mocks/skus"
 import { jobs as mockJobs } from "@/mocks/jobs"
@@ -752,5 +752,472 @@ export async function createManufacturer(manufacturerData: {
       duration,
     })
     return { success: false, error: error.message || "An unexpected error occurred" }
+  }
+}
+
+/**
+ * Fetches statistics about the most ordered SKUs
+ * @param limit Number of SKUs to return (default: 5)
+ * @returns Array of SKUs with order counts
+ */
+export async function getSkuStatistics(limit = 5) {
+  const startTime = performance.now()
+  logger.info(`getSkuStatistics called`, { data: { limit, useMocks } })
+
+  if (useMocks) {
+    // Use mock data
+    const mockStats = [
+      { id: "NK12345YGNO", name: "Gold Necklace", count: 42 },
+      { id: "RG45678WGNO", name: "Diamond Ring", count: 36 },
+      { id: "ER78901YGRB", name: "Ruby Earrings", count: 28 },
+      { id: "BG23456RGNO", name: "Gold Bangle", count: 24 },
+      { id: "PN34567YGEM", name: "Emerald Pendant", count: 19 },
+    ]
+
+    const duration = performance.now() - startTime
+    logger.info(`getSkuStatistics completed with mock data`, {
+      data: { count: mockStats.length },
+      duration,
+    })
+
+    return mockStats
+  }
+
+  try {
+    // This query gets the count of each SKU in order_items
+    const { data, error } = await supabase
+      .from("order_items")
+      .select(`
+        sku_id,
+        quantity,
+        skus:sku_id (sku_id, name)
+      `)
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      const duration = performance.now() - startTime
+      logger.error(`Error fetching SKU statistics from Supabase`, {
+        error,
+        duration,
+      })
+      return []
+    }
+
+    // Process the data to get counts by SKU
+    const skuCounts = {}
+
+    data.forEach((item) => {
+      const skuId = item.skus?.sku_id
+      const skuName = item.skus?.name
+
+      if (skuId && skuName) {
+        if (!skuCounts[skuId]) {
+          skuCounts[skuId] = {
+            id: skuId,
+            name: skuName,
+            count: 0,
+          }
+        }
+
+        skuCounts[skuId].count += item.quantity || 1
+      }
+    })
+
+    // Convert to array and sort by count (descending)
+    const sortedStats = Object.values(skuCounts)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit)
+
+    const duration = performance.now() - startTime
+    logger.info(`getSkuStatistics completed successfully`, {
+      data: { count: sortedStats.length },
+      duration,
+    })
+
+    return sortedStats
+  } catch (error) {
+    const duration = performance.now() - startTime
+    logger.error(`Unexpected error in getSkuStatistics`, {
+      error,
+      duration,
+    })
+    return []
+  }
+}
+
+/**
+ * Fetches stone lots from the database
+ * @returns Array of stone lot objects
+ */
+export async function fetchStoneLots(): Promise<StoneLotData[]> {
+  const startTime = performance.now()
+  logger.info(`fetchStoneLots called`, { data: { useMocks } })
+
+  // Log environment and configuration details
+  logger.debug(`fetchStoneLots environment check`, {
+    useMocks,
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? "SET" : "NOT_SET",
+    supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "SET" : "NOT_SET",
+    supabaseClientExists: !!supabase,
+  })
+
+  if (useMocks) {
+    // Mock data for stone lots
+    const mockStoneLots: StoneLotData[] = [
+      { id: "1", lot_number: "LOT-S001", stone_type: "Ruby", size: "2mm", quantity: 50, weight: 25.5, available: true },
+      {
+        id: "2",
+        lot_number: "LOT-S002",
+        stone_type: "Emerald",
+        size: "3mm",
+        quantity: 30,
+        weight: 15.2,
+        available: true,
+      },
+      {
+        id: "3",
+        lot_number: "LOT-S003",
+        stone_type: "Sapphire",
+        size: "2.5mm",
+        quantity: 40,
+        weight: 20.0,
+        available: true,
+      },
+      { id: "4", lot_number: "LOT-S004", stone_type: "Jade", size: "4mm", quantity: 25, weight: 30.5, available: true },
+    ]
+
+    const duration = performance.now() - startTime
+    logger.info(`fetchStoneLots completed with mock data`, {
+      data: { count: mockStoneLots.length },
+      duration,
+    })
+    return mockStoneLots
+  }
+
+  try {
+    logger.debug(`Executing main stone lots query from Supabase with status='Available' filter`)
+    const queryStartTime = performance.now()
+
+    const { data, error, status, statusText } = await supabase
+      .from("stone_lots")
+      .select("*")
+      .eq("status", "Available") // Filter by status = 'Available'
+      .order("lot_number", { ascending: true })
+
+    const queryDuration = performance.now() - queryStartTime
+
+    logger.debug(`Main stone lots query completed`, {
+      queryDuration,
+      status,
+      statusText,
+      success: !error,
+      recordCount: data?.length || 0,
+      error: error
+        ? {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code,
+          }
+        : null,
+    })
+
+    if (error) {
+      const duration = performance.now() - startTime
+      logger.error(`Error in main stone lots query`, {
+        error: {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        },
+        queryDuration,
+        totalDuration: duration,
+      })
+
+      // Try querying without status filter to see if there's any data at all
+      logger.debug(`Attempting to fetch stone lots without status filter for debugging`)
+      const { data: allData, error: allError } = await supabase
+        .from("stone_lots")
+        .select("*")
+        .order("lot_number", { ascending: true })
+
+      logger.debug(`All stone lots query (no filter) result:`, {
+        success: !allError,
+        recordCount: allData?.length || 0,
+        sampleRecord: allData?.[0] || null,
+        statusValues: allData?.map((record) => record.status) || [],
+        error: allError ? { message: allError.message, code: allError.code } : null,
+      })
+
+      return []
+    }
+
+    if (!data || data.length === 0) {
+      logger.warn(`Query succeeded but no stone lots found with status='Available'`)
+
+      // Try querying without status filter to see what status values exist
+      logger.debug(`Attempting to fetch stone lots without status filter for debugging`)
+      const { data: allData, error: allError } = await supabase
+        .from("stone_lots")
+        .select("*")
+        .order("lot_number", { ascending: true })
+
+      logger.debug(`All stone lots query (no filter) result:`, {
+        success: !allError,
+        recordCount: allData?.length || 0,
+        sampleRecord: allData?.[0] || null,
+        statusValues: allData?.map((record) => record.status) || [],
+        uniqueStatusValues: [...new Set(allData?.map((record) => record.status) || [])],
+        error: allError ? { message: allError.message, code: allError.code } : null,
+      })
+
+      return []
+    }
+
+    const duration = performance.now() - startTime
+    logger.info(`fetchStoneLots completed successfully from Supabase`, {
+      data: {
+        count: data.length,
+        sample: data[0],
+      },
+      duration,
+    })
+
+    // Add detailed logging of the raw data structure
+    logger.debug(`Raw stone lots data from Supabase:`, {
+      totalRecords: data.length,
+      sampleRecord: data[0],
+      allColumns: data[0] ? Object.keys(data[0]) : [],
+      lotNumbers: data.map((record) => record.lot_number),
+      statusValues: data.map((record) => record.status),
+      recordsWithLotNumbers: data.map((record) => ({
+        id: record.id,
+        lot_number: record.lot_number,
+        lot_number_type: typeof record.lot_number,
+        lot_number_length: record.lot_number ? record.lot_number.length : 0,
+        lot_number_valid: !!(record.lot_number && record.lot_number.trim()),
+        stone_type: record.stone_type,
+        stone_size: record.stone_size,
+        quantity: record.quantity,
+        weight: record.weight,
+        status: record.status,
+      })),
+    })
+
+    // Validate that all records have lot_number
+    const recordsWithoutLotNumber = data.filter((record) => !record.lot_number || record.lot_number.trim() === "")
+    if (recordsWithoutLotNumber.length > 0) {
+      logger.warn(`Found ${recordsWithoutLotNumber.length} stone lot records without lot_number:`, {
+        recordsWithoutLotNumber: recordsWithoutLotNumber.map((record) => ({
+          id: record.id,
+          lot_number: record.lot_number,
+          lot_number_raw: JSON.stringify(record.lot_number),
+          status: record.status,
+        })),
+      })
+    }
+
+    const validLots = data.filter((record) => record.lot_number && record.lot_number.trim() !== "")
+    logger.debug(`Stone lots validation results:`, {
+      totalLots: data.length,
+      validLots: validLots.length,
+      invalidLots: recordsWithoutLotNumber.length,
+      validLotNumbers: validLots.map((lot) => lot.lot_number),
+    })
+
+    const mappedData = validLots.map((lot) => ({
+      id: lot.id,
+      lot_number: lot.lot_number,
+      stone_type: lot.stone_type,
+      size: lot.stone_size, // Map stone_size to size
+      quantity: lot.quantity,
+      weight: lot.weight,
+      available: lot.status === "Available", // Map status to available boolean
+    }))
+
+    logger.debug("Mapped stone lot data being returned:", {
+      count: mappedData.length,
+      sampleMappedRecord: mappedData[0],
+      allMappedLotNumbers: mappedData.map((lot) => lot.lot_number),
+    })
+
+    return mappedData
+  } catch (error: any) {
+    const duration = performance.now() - startTime
+    logger.error(`Unexpected error in fetchStoneLots`, {
+      error: {
+        message: error.message || error,
+        stack: error.stack,
+        name: error.name,
+        cause: error.cause,
+      },
+      duration,
+    })
+    return []
+  }
+}
+
+/**
+ * Fetches diamond lots from the database
+ * @returns Array of diamond lot objects
+ */
+export async function fetchDiamondLots(): Promise<DiamondLotData[]> {
+  const startTime = performance.now()
+  logger.info(`fetchDiamondLots called`, { data: { useMocks } })
+
+  if (useMocks) {
+    // This block will only run if NEXT_PUBLIC_USE_MOCKS is "true"
+    // For development, you might want to define mock diamond lots here
+    const mockDiamondLots: DiamondLotData[] = [
+      {
+        id: "d1",
+        lot_number: "DLOT-M001",
+        size: "0.5mm",
+        shape: "Round",
+        quality: "VS1",
+        a_type: "Lab Grown",
+        stonegroup: "White",
+        quantity: 100,
+        weight: 10.0,
+        price: 5000,
+        status: "available",
+      },
+      {
+        id: "d2",
+        lot_number: "DLOT-M002",
+        size: "1.0mm",
+        shape: "Princess",
+        quality: "SI1",
+        a_type: "Natural",
+        stonegroup: "Yellow",
+        quantity: 50,
+        weight: 12.5,
+        price: 7000,
+        status: "available",
+      },
+    ]
+    const duration = performance.now() - startTime
+    logger.info(`fetchDiamondLots completed with mock data`, {
+      data: { count: mockDiamondLots.length },
+      duration,
+    })
+    return mockDiamondLots
+  }
+
+  try {
+    logger.debug(`Executing main diamond lots query from Supabase with status='Available' filter`)
+    const queryStartTime = performance.now()
+
+    const { data, error, status, statusText } = await supabase
+      .from("diamond_lots")
+      .select("*")
+      .eq("status", "Available") // Filter by status = 'Available'
+      .order("lot_number", { ascending: true })
+
+    const queryDuration = performance.now() - queryStartTime
+
+    logger.debug(`Main diamond lots query completed`, {
+      queryDuration,
+      status,
+      statusText,
+      success: !error,
+      recordCount: data?.length || 0,
+      error: error ? { message: error.message, details: error.details, hint: error.hint, code: error.code } : null,
+    })
+
+    if (error) {
+      const duration = performance.now() - startTime
+      logger.error(`Error in main diamond lots query`, {
+        error: { message: error.message, details: error.details, hint: error.hint, code: error.code },
+        queryDuration,
+        totalDuration: duration,
+      })
+      // Return an empty array or minimal fallback if Supabase query fails
+      logger.warn(`Returning empty array for diamond lots due to query error`)
+      return []
+    }
+
+    if (!data || data.length === 0) {
+      logger.warn(`Query succeeded but no diamond lots found (status='Available')`)
+
+      // Try querying without status filter to see if there's any data at all
+      logger.debug(`Attempting to fetch diamond lots without status filter for debugging`)
+      const { data: allData, error: allError } = await supabase
+        .from("diamond_lots")
+        .select("*")
+        .order("lot_number", { ascending: true })
+
+      logger.debug(`All diamond lots query (no filter) result:`, {
+        success: !allError,
+        recordCount: allData?.length || 0,
+        sampleRecord: allData?.[0] || null,
+        allRecords:
+          allData?.map((record) => ({
+            id: record.id,
+            lot_number: record.lot_number,
+            status: record.status,
+          })) || [],
+        error: allError ? { message: allError.message, code: allError.code } : null,
+      })
+
+      return [] // Return empty if no lots found
+    }
+
+    const duration = performance.now() - startTime
+    logger.info(`fetchDiamondLots completed successfully from Supabase`, {
+      data: { count: data.length, sample: data[0] },
+      duration,
+    })
+
+    // Add detailed logging of the raw data structure
+    logger.debug(`Raw diamond lots data from Supabase:`, {
+      totalRecords: data.length,
+      sampleRecord: data[0],
+      allColumns: data[0] ? Object.keys(data[0]) : [],
+      lotNumbers: data.map((record) => record.lot_number),
+      recordsWithLotNumbers: data.map((record) => ({
+        id: record.id,
+        lot_number: record.lot_number,
+        lot_number_type: typeof record.lot_number,
+        lot_number_length: record.lot_number ? record.lot_number.length : 0,
+        status: record.status,
+        size: record.size,
+        shape: record.shape,
+        quality: record.quality,
+      })),
+    })
+
+    // Validate that all records have lot_number
+    const recordsWithoutLotNumber = data.filter((record) => !record.lot_number || record.lot_number.trim() === "")
+    if (recordsWithoutLotNumber.length > 0) {
+      logger.warn(`Found ${recordsWithoutLotNumber.length} diamond lot records without lot_number:`, {
+        recordsWithoutLotNumber: recordsWithoutLotNumber.map((record) => ({
+          id: record.id,
+          lot_number: record.lot_number,
+          lot_number_raw: JSON.stringify(record.lot_number),
+        })),
+      })
+    }
+
+    const validLots = data.filter((lot) => lot.lot_number && lot.lot_number.trim() !== "")
+    logger.debug(`Returning typed diamond lots data:`, {
+      count: validLots.length,
+      sampleTypedRecord: validLots[0],
+      allLotNumbers: validLots.map((lot) => lot.lot_number),
+    })
+
+    // Ensure data matches DiamondLotData type, though direct mapping is likely fine
+    const typedData = validLots as DiamondLotData[]
+
+    return typedData
+  } catch (error: any) {
+    const duration = performance.now() - startTime
+    logger.error(`Unexpected error in fetchDiamondLots`, {
+      error: { message: error.message || error, stack: error.stack, name: error.name, cause: error.cause },
+      duration,
+    })
+    logger.warn(`Returning empty array for diamond lots due to unexpected error`)
+    return [] // Return empty array on unexpected error
   }
 }

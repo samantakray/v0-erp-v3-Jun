@@ -6,11 +6,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Upload, Plus, X } from "lucide-react"
+import { ArrowLeft, Plus, X, Loader2 } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useToast } from "@/components/ui/use-toast"
+import { ImageUpload } from "@/components/image-upload"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { createSku } from "@/app/actions/sku-actions"
 import {
   SKU_CATEGORY,
   DEFAULT_SIZES,
@@ -21,16 +25,20 @@ import {
 } from "@/constants/categories"
 
 export default function NewSKUPage() {
+  const router = useRouter()
+  const { toast } = useToast()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [createMultiple, setCreateMultiple] = useState(true)
   const [category, setCategory] = useState("Necklace")
-  const [size, setSize] = useState(DEFAULT_SIZES["Necklace"] ?? 0) // Add fallback
+  const [size, setSize] = useState(DEFAULT_SIZES["Necklace"] ?? 0)
   const [goldType, setGoldType] = useState("Yellow Gold")
   const [stoneType, setStoneType] = useState("None")
   const [diamondType, setDiamondType] = useState("")
   const [weight, setWeight] = useState("")
-  const [image, setImage] = useState(null)
+  const [imageUrl, setImageUrl] = useState("")
   const [showPreview, setShowPreview] = useState(false)
   const [multipleSkus, setMultipleSkus] = useState([])
+  const [uploadErrors, setUploadErrors] = useState({})
 
   // Initialize with one SKU variant when the component mounts
   useEffect(() => {
@@ -38,12 +46,12 @@ export default function NewSKUPage() {
       setMultipleSkus([
         {
           category: "Necklace",
-          size: DEFAULT_SIZES["Necklace"] ?? 0, // Add fallback
+          size: DEFAULT_SIZES["Necklace"] ?? 0,
           goldType: "Yellow Gold",
           stoneType: "None",
           diamondType: "",
           weight: "",
-          image: null,
+          imageUrl: "",
         },
       ])
     }
@@ -52,13 +60,7 @@ export default function NewSKUPage() {
   // Update size when category changes
   const handleCategoryChange = (newCategory) => {
     setCategory(newCategory)
-    setSize(DEFAULT_SIZES[newCategory] ?? 0) // Add fallback
-  }
-
-  const handleImageChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setImage(e.target.files[0])
-    }
+    setSize(DEFAULT_SIZES[newCategory] ?? 0)
   }
 
   // Helper function to get size constraints for a category
@@ -71,53 +73,166 @@ export default function NewSKUPage() {
     }
   }
 
-  const handleSubmit = (e) => {
+  // Handle image URL change for a specific SKU variant
+  const handleImageUrlChange = (index, url) => {
+    const newSkus = [...multipleSkus]
+    newSkus[index].imageUrl = url
+    setMultipleSkus(newSkus)
+
+    // Clear any upload errors for this variant
+    if (uploadErrors[index]) {
+      const newErrors = { ...uploadErrors }
+      delete newErrors[index]
+      setUploadErrors(newErrors)
+    }
+  }
+
+  // Handle image upload error for a specific SKU variant
+  const handleImageError = (index, error) => {
+    setUploadErrors((prev) => ({
+      ...prev,
+      [index]: error,
+    }))
+  }
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
 
     if (!createMultiple) {
       // For single SKU creation
-      console.log("Form submitted:", {
-        category,
-        size: Number(size), // Convert to number
-        goldType,
-        stoneType,
-        diamondType,
-        weight,
-        image,
-      })
-      // Redirect to SKUs page after submission
+      setIsSubmitting(true)
+
+      try {
+        // Generate a temporary SKU ID for the image path
+        const tempSkuId = `SKU-${Date.now()}`
+
+        // 🔍 DEBUG LOGGING - Before createSku call
+        console.log("🔍 Form DEBUG - Before createSku call:", {
+          imageUrl,
+          tempSkuId,
+          skuData: {
+            name: `${category} - ${goldType}`,
+            image: imageUrl,
+          },
+        })
+
+        const result = await createSku(
+          {
+            name: `${category} - ${goldType}`, // Generate a basic name
+            category,
+            size: Number(size),
+            goldType,
+            stoneType,
+            diamondType,
+            weight: weight ? Number(weight) : null,
+            image: imageUrl,
+          },
+          tempSkuId,
+          // NOTE: Currently no imageFile is being passed here!
+        )
+
+        // 🔍 DEBUG LOGGING - createSku result
+        console.log("🔍 Form DEBUG - createSku result:", result)
+
+        if (!result.success) {
+          throw new Error(result.error || "Failed to create SKU")
+        }
+
+        toast({
+          title: "SKU Created",
+          description: `Successfully created SKU: ${result.sku.sku_id}`,
+        })
+
+        router.push("/skus")
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message || "An unexpected error occurred",
+        })
+      } finally {
+        setIsSubmitting(false)
+      }
     } else {
       // For multiple SKU creation, show preview first
       setShowPreview(true)
     }
   }
 
-  const handleConfirmMultiple = () => {
-    // Create all SKUs
-    const skus = createMultiple
-      ? multipleSkus.map((sku) => ({
-          ...sku,
-          size: Number(sku.size), // Convert to number
-        }))
-      : [
-          {
-            category,
-            size: Number(size), // Convert to number
-            goldType,
-            stoneType,
-            diamondType,
-            weight,
-            image,
-          },
-        ]
+  const handleConfirmMultiple = async () => {
+    setIsSubmitting(true)
 
-    console.log("Creating SKUs:", skus)
-    // Redirect to SKUs page after submission
+    try {
+      // Check if there are any upload errors
+      if (Object.keys(uploadErrors).length > 0) {
+        throw new Error("Please fix all image upload errors before continuing")
+      }
+
+      // Create all SKUs one by one
+      const results = []
+
+      for (const sku of multipleSkus) {
+        // Generate a temporary SKU ID for each SKU
+        const tempSkuId = `SKU-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
+
+        // 🔍 DEBUG LOGGING - Before createSku call for multiple
+        console.log("🔍 Form DEBUG - Before createSku call (multiple):", {
+          imageUrl: sku.imageUrl,
+          tempSkuId,
+          skuData: {
+            name: `${sku.category} - ${sku.goldType}`,
+            image: sku.imageUrl,
+          },
+        })
+
+        const result = await createSku(
+          {
+            name: `${sku.category} - ${sku.goldType}`, // Generate a basic name
+            category: sku.category,
+            size: Number(sku.size),
+            goldType: sku.goldType,
+            stoneType: sku.stoneType,
+            diamondType: sku.diamondType,
+            weight: sku.weight ? Number(sku.weight) : null,
+            image: sku.imageUrl,
+          },
+          tempSkuId,
+          // NOTE: Currently no imageFile is being passed here either!
+        )
+
+        // 🔍 DEBUG LOGGING - createSku result for multiple
+        console.log("🔍 Form DEBUG - createSku result (multiple):", result)
+
+        results.push(result)
+
+        if (!result.success) {
+          throw new Error(`Failed to create SKU: ${result.error}`)
+        }
+      }
+
+      toast({
+        title: "SKUs Created",
+        description: `Successfully created ${results.length} SKUs`,
+      })
+
+      router.push("/skus")
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "An unexpected error occurred",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // Get size constraints for the current category
   const { min, max, step, unit } = getSizeConstraints(category)
   const hasSizeConstraints = min !== undefined && max !== undefined
+
+  // Check if there are any upload errors
+  const hasUploadErrors = Object.keys(uploadErrors).length > 0
 
   return (
     <div className="flex flex-col">
@@ -260,12 +375,12 @@ export default function NewSKUPage() {
                           ...multipleSkus,
                           {
                             category: "Necklace",
-                            size: DEFAULT_SIZES["Necklace"] ?? 0, // Add fallback
+                            size: DEFAULT_SIZES["Necklace"] ?? 0,
                             goldType: "Yellow Gold",
                             stoneType: "None",
                             diamondType: "",
                             weight: "",
-                            image: null,
+                            imageUrl: "",
                           },
                         ])
                       }}
@@ -307,7 +422,7 @@ export default function NewSKUPage() {
                                       onValueChange={(value) => {
                                         const newSkus = [...multipleSkus]
                                         newSkus[index].category = value
-                                        newSkus[index].size = DEFAULT_SIZES[value] ?? 0 // Add fallback
+                                        newSkus[index].size = DEFAULT_SIZES[value] ?? 0
                                         setMultipleSkus(newSkus)
                                       }}
                                     >
@@ -408,29 +523,17 @@ export default function NewSKUPage() {
                                     />
                                   </TableCell>
                                   <TableCell>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      className="w-full"
-                                      onClick={() => document.getElementById(`image-${index}`).click()}
-                                    >
-                                      <Upload className="mr-2 h-4 w-4" />
-                                      Upload
-                                    </Button>
-                                    <Input
-                                      id={`image-${index}`}
-                                      type="file"
-                                      className="hidden"
-                                      accept="image/*"
-                                      onChange={(e) => {
-                                        if (e.target.files && e.target.files[0]) {
-                                          const newSkus = [...multipleSkus]
-                                          newSkus[index].image = e.target.files[0]
-                                          setMultipleSkus(newSkus)
-                                        }
-                                      }}
-                                    />
+                                    <div className="w-[120px]">
+                                      <ImageUpload
+                                        value={sku.imageUrl}
+                                        onChange={(url) => handleImageUrlChange(index, url)}
+                                        skuId={`temp-sku-${index}`}
+                                        showPreview={false}
+                                      />
+                                      {uploadErrors[index] && (
+                                        <p className="text-xs text-red-500 mt-1">{uploadErrors[index]}</p>
+                                      )}
+                                    </div>
                                   </TableCell>
                                   <TableCell>
                                     <Button
@@ -440,6 +543,13 @@ export default function NewSKUPage() {
                                         const newSkus = [...multipleSkus]
                                         newSkus.splice(index, 1)
                                         setMultipleSkus(newSkus)
+
+                                        // Clear any upload errors for this variant
+                                        if (uploadErrors[index]) {
+                                          const newErrors = { ...uploadErrors }
+                                          delete newErrors[index]
+                                          setUploadErrors(newErrors)
+                                        }
                                       }}
                                       disabled={multipleSkus.length <= 1}
                                     >
@@ -528,23 +638,14 @@ export default function NewSKUPage() {
                                 />
                               </TableCell>
                               <TableCell>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full"
-                                  onClick={() => document.getElementById("image").click()}
-                                >
-                                  <Upload className="mr-2 h-4 w-4" />
-                                  Upload
-                                </Button>
-                                <Input
-                                  id="image"
-                                  type="file"
-                                  className="hidden"
-                                  accept="image/*"
-                                  onChange={handleImageChange}
-                                />
+                                <div className="w-[120px]">
+                                  <ImageUpload
+                                    value={imageUrl}
+                                    onChange={setImageUrl}
+                                    skuId="temp-single-sku"
+                                    showPreview={false}
+                                  />
+                                </div>
                               </TableCell>
                               <TableCell></TableCell>
                             </TableRow>
@@ -563,8 +664,17 @@ export default function NewSKUPage() {
                 <Button variant="outline" type="button" asChild>
                   <Link href="/skus">Cancel</Link>
                 </Button>
-                <Button type="submit">
-                  {createMultiple && multipleSkus.length > 0 ? "Preview SKUs" : "Create SKU"}
+                <Button type="submit" disabled={isSubmitting || hasUploadErrors}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : createMultiple && multipleSkus.length > 0 ? (
+                    "Preview SKUs"
+                  ) : (
+                    "Create SKU"
+                  )}
                 </Button>
               </CardFooter>
             </form>
@@ -587,6 +697,7 @@ export default function NewSKUPage() {
                         <TableHead>Stone Type</TableHead>
                         <TableHead>Diamond (kt)</TableHead>
                         <TableHead>Weight (g)</TableHead>
+                        <TableHead>Image</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -602,6 +713,23 @@ export default function NewSKUPage() {
                               <TableCell>{sku.stoneType}</TableCell>
                               <TableCell>{sku.diamondType || "N/A"}</TableCell>
                               <TableCell>{sku.weight || "N/A"}</TableCell>
+                              <TableCell>
+                                {sku.imageUrl ? (
+                                  <div className="w-12 h-12 relative">
+                                    <img
+                                      src={sku.imageUrl || "/placeholder.svg"}
+                                      alt={`${sku.category} preview`}
+                                      className="w-full h-full object-cover rounded-md"
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement
+                                        target.src = "/placeholder.svg?height=48&width=48&text=Error"
+                                      }}
+                                    />
+                                  </div>
+                                ) : (
+                                  "No image"
+                                )}
+                              </TableCell>
                             </TableRow>
                           )
                         })
@@ -614,6 +742,23 @@ export default function NewSKUPage() {
                           <TableCell>{stoneType}</TableCell>
                           <TableCell>{diamondType || "N/A"}</TableCell>
                           <TableCell>{weight || "N/A"}</TableCell>
+                          <TableCell>
+                            {imageUrl ? (
+                              <div className="w-12 h-12 relative">
+                                <img
+                                  src={imageUrl || "/placeholder.svg"}
+                                  alt="SKU preview"
+                                  className="w-full h-full object-cover rounded-md"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement
+                                    target.src = "/placeholder.svg?height=48&width=48&text=Error"
+                                  }}
+                                />
+                              </div>
+                            ) : (
+                              "No image"
+                            )}
+                          </TableCell>
                         </TableRow>
                       )}
                     </TableBody>
@@ -621,10 +766,19 @@ export default function NewSKUPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between">
-                <Button variant="outline" onClick={() => setShowPreview(false)}>
+                <Button variant="outline" onClick={() => setShowPreview(false)} disabled={isSubmitting}>
                   Back to Edit
                 </Button>
-                <Button onClick={handleConfirmMultiple}>Confirm & Create SKUs</Button>
+                <Button onClick={handleConfirmMultiple} disabled={isSubmitting || hasUploadErrors}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating SKUs...
+                    </>
+                  ) : (
+                    "Confirm & Create SKUs"
+                  )}
+                </Button>
               </CardFooter>
             </div>
           )}
