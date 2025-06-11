@@ -22,6 +22,7 @@ import {
 } from "@/constants/categories"
 import { getNextSkuNumber, createSkuBatch, getPredictedNextSkuNumber } from "@/app/actions/sku-sequence-actions"
 import { logger } from "@/lib/logger"
+import { ImageUpload } from "@/components/image-upload"
 
 export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   const [multipleSkus, setMultipleSkus] = useState([])
@@ -31,11 +32,13 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   const [error, setError] = useState(null)
   const skusCreatedRef = useRef(false)
   const [isPredictedNumber, setIsPredictedNumber] = useState(true)
+  const [uploadErrors, setUploadErrors] = useState({})
 
   // Initialize the SKU variants and fetch the predicted next number when the sheet is opened
   useEffect(() => {
     if (open) {
       setError(null)
+      setUploadErrors({})
       // Reset the skusCreated flag when the sheet is opened
       skusCreatedRef.current = false
       setIsPredictedNumber(true)
@@ -50,7 +53,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
           stoneType: STONE_TYPE.NONE, // Use constant
           diamondType: "",
           weight: "",
-          image: null,
+          imageUrl: "", // Changed from image: null to imageUrl: ""
         },
       ])
 
@@ -90,15 +93,26 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
     }
   }
 
-  const handleImageChange = (e, index = null) => {
-    if (e.target.files && e.target.files[0]) {
-      if (index !== null) {
-        // For variant image
-        const newSkus = [...multipleSkus]
-        newSkus[index].image = e.target.files[0]
-        setMultipleSkus(newSkus)
-      }
+  // Handle image URL change for a specific SKU variant
+  const handleImageChange = (imageUrl, index) => {
+    const newSkus = [...multipleSkus]
+    newSkus[index].imageUrl = imageUrl
+    setMultipleSkus(newSkus)
+
+    // Clear any previous error for this index
+    if (uploadErrors[index]) {
+      const newErrors = { ...uploadErrors }
+      delete newErrors[index]
+      setUploadErrors(newErrors)
     }
+  }
+
+  // Handle image upload error for a specific SKU variant
+  const handleImageError = (error, index) => {
+    setUploadErrors((prev) => ({
+      ...prev,
+      [index]: error,
+    }))
   }
 
   // Generate SKU ID preview based on category and sequential number
@@ -112,6 +126,12 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   const handleCreateSkusBatch = async () => {
     if (multipleSkus.length === 0) {
       setError("Cannot create SKUs: No variants added.")
+      return
+    }
+
+    // Check if there are any upload errors
+    if (Object.keys(uploadErrors).length > 0) {
+      setError("Please fix image upload errors before creating SKUs.")
       return
     }
 
@@ -147,7 +167,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
           stoneType: sku.stoneType,
           diamondType: sku.diamondType,
           weight: sku.weight,
-          image: sku.image ? URL.createObjectURL(sku.image) : "/placeholder.svg?height=80&width=80",
+          image_url: sku.imageUrl || "/placeholder.svg?height=80&width=80", // Use the stored image URL
         }
       })
 
@@ -263,11 +283,12 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                         {multipleSkus.map((sku, index) => {
                           const { min, max, step, unit } = getSizeConstraints(sku.category)
                           const hasSizeConstraints = min !== undefined && max !== undefined
+                          const skuIdPreview = generateSkuIdPreview(sku.category)
 
                           return (
                             <TableRow key={index}>
                               <TableCell>{index + 1}</TableCell>
-                              <TableCell className="font-mono">{generateSkuIdPreview(sku.category)}</TableCell>
+                              <TableCell className="font-mono">{skuIdPreview}</TableCell>
                               <TableCell>
                                 <Select
                                   value={sku.category}
@@ -381,25 +402,17 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                                 </Select>
                               </TableCell>
                               <TableCell>
-                                <div className="flex items-center">
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      const fileInput = document.createElement("input")
-                                      fileInput.type = "file"
-                                      fileInput.accept = "image/*"
-                                      fileInput.onchange = (e) => handleImageChange(e, index)
-                                      fileInput.click()
-                                    }}
-                                  >
-                                    Upload
-                                  </Button>
-                                  {sku.image && (
-                                    <span className="ml-2 text-xs text-muted-foreground">
-                                      {typeof sku.image === "object" ? sku.image.name : "Image selected"}
-                                    </span>
+                                <div className="w-[150px]">
+                                  <ImageUpload
+                                    value={sku.imageUrl}
+                                    onChange={(url) => handleImageChange(url, index)}
+                                    onError={(err) => handleImageError(err, index)}
+                                    tempId={`sku-temp-${index}-${Date.now()}`}
+                                    skuId={skuIdPreview !== "Generating..." ? skuIdPreview : undefined}
+                                    compact={true}
+                                  />
+                                  {uploadErrors[index] && (
+                                    <p className="text-xs text-red-500 mt-1">{uploadErrors[index]}</p>
                                   )}
                                 </div>
                               </TableCell>
@@ -411,6 +424,13 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                                     const newSkus = [...multipleSkus]
                                     newSkus.splice(index, 1)
                                     setMultipleSkus(newSkus)
+
+                                    // Remove any errors for this index
+                                    if (uploadErrors[index]) {
+                                      const newErrors = { ...uploadErrors }
+                                      delete newErrors[index]
+                                      setUploadErrors(newErrors)
+                                    }
                                   }}
                                   disabled={multipleSkus.length <= 1}
                                 >
@@ -444,7 +464,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                           stoneType: STONE_TYPE.NONE, // Use constant
                           diamondType: "",
                           weight: "",
-                          image: null,
+                          imageUrl: "", // Changed from image: null to imageUrl: ""
                         },
                       ])
                     }}
@@ -460,7 +480,12 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
         <SheetFooter className="mt-6">
           <Button
             onClick={handleCreateSkusBatch}
-            disabled={multipleSkus.length === 0 || nextSequentialNumber === null || isLoading}
+            disabled={
+              multipleSkus.length === 0 ||
+              nextSequentialNumber === null ||
+              isLoading ||
+              Object.keys(uploadErrors).length > 0
+            }
             className="w-full"
           >
             {isLoading ? (

@@ -3,86 +3,64 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Eye } from "lucide-react"
+import { Eye, Loader2 } from "lucide-react"
 import { useState, useEffect } from "react"
-
-const initialOrders = [
-  {
-    id: "O12221",
-    skus: [
-      { id: "NK12345", name: "Gold Necklace", quantity: 5 },
-      { id: "RG45678", name: "Diamond Ring", quantity: 3 },
-    ],
-    dueDate: "2025-04-15",
-    productionDate: "2025-04-08",
-    status: "New",
-    action: "Stone selection",
-    daysToDue: 0,
-  },
-  {
-    id: "O12222",
-    skus: [{ id: "ER78901", name: "Ruby Earrings", quantity: 10 }],
-    dueDate: "2025-04-10",
-    productionDate: "2025-04-03",
-    status: "Priority",
-    action: "Diamond selection",
-    daysToDue: 0,
-  },
-  {
-    id: "O12223",
-    skus: [
-      { id: "BG23456", name: "Gold Bangle", quantity: 2 },
-      { id: "PN34567", name: "Emerald Pendant", quantity: 4 },
-    ],
-    dueDate: "2025-04-20",
-    productionDate: "2025-04-13",
-    status: "Stones selected done",
-    action: "Manufacturer selection",
-    daysToDue: 0,
-  },
-  {
-    id: "O12224",
-    skus: [{ id: "RG45678", name: "Diamond Ring", quantity: 8 }],
-    dueDate: "2025-04-12",
-    productionDate: "2025-04-05",
-    status: "Priority",
-    action: "Sent to manufacturer",
-    daysToDue: 0,
-  },
-  {
-    id: "O12225",
-    skus: [
-      { id: "NK12345", name: "Gold Necklace", quantity: 3 },
-      { id: "ER78901", name: "Ruby Earrings", quantity: 6 },
-    ],
-    dueDate: "2025-04-25",
-    productionDate: "2025-04-18",
-    status: "New",
-    action: "Stone selection",
-    daysToDue: 0,
-  },
-]
+import { fetchOrders } from "@/lib/api-service"
+import Link from "next/link"
 
 export function OrdersTable() {
-  const [orders, setOrders] = useState(initialOrders)
+  const [orders, setOrders] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Calculate days to due for each order
+  // Fetch orders on component mount
   useEffect(() => {
-    const today = new Date()
-    const updatedOrders = orders.map((order) => {
-      const dueDate = new Date(order.dueDate)
-      const timeDiff = dueDate.getTime() - today.getTime()
-      const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24))
-      return {
-        ...order,
-        daysToDue: daysDiff,
-      }
-    })
+    async function loadOrders() {
+      setIsLoading(true)
+      try {
+        const ordersData = await fetchOrders()
 
-    // Sort orders by days to due in ascending order
-    updatedOrders.sort((a, b) => a.daysToDue - b.daysToDue)
-    setOrders(updatedOrders)
+        // Sort orders by days to due in ascending order
+        const today = new Date()
+        const processedOrders = ordersData.map((order) => {
+          const dueDate = new Date(order.dueDate)
+          const timeDiff = dueDate.getTime() - today.getTime()
+          const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24))
+          return {
+            ...order,
+            daysToDue: daysDiff,
+          }
+        })
+
+        // Sort orders by days to due in ascending order
+        processedOrders.sort((a, b) => a.daysToDue - b.daysToDue)
+
+        // Limit to 5 most recent orders for the dashboard
+        setOrders(processedOrders.slice(0, 5))
+      } catch (error) {
+        console.error("Error fetching orders:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadOrders()
   }, [])
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-40">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (orders.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No orders found. Create your first order to get started.
+      </div>
+    )
+  }
 
   return (
     <div className="rounded-md border">
@@ -122,9 +100,11 @@ export function OrdersTable() {
               </TableCell>
               <TableCell>{order.action}</TableCell>
               <TableCell className="text-right">
-                <Button variant="ghost" size="icon">
-                  <Eye className="h-4 w-4" />
-                </Button>
+                <Link href={`/orders/${order.id}`}>
+                  <Button variant="ghost" size="icon">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </Link>
               </TableCell>
             </TableRow>
           ))}

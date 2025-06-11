@@ -1,6 +1,7 @@
 "use server"
 
 import { createServiceClient } from "@/lib/supabaseClient"
+import { uploadImageToSupabase, deleteImageFromSupabase, generateSkuImagePath } from "@/lib/supabase-storage"
 import { logger } from "@/lib/logger"
 import { revalidatePath } from "next/cache"
 import type { SKU } from "@/types"
@@ -10,9 +11,10 @@ import type { SKU } from "@/types"
  *
  * @param skuData The SKU data to create
  * @param preGeneratedId Optional pre-generated SKU ID. If provided, this ID will be used instead of letting the database generate one.
+ * @param imageFile Optional image file to upload
  * @returns Object with success status, error message if applicable, and the created SKU
  */
-export async function createSku(skuData: Omit<SKU, "id" | "createdAt">, preGeneratedId?: string) {
+export async function createSku(skuData: Omit<SKU, "id" | "createdAt">, preGeneratedId?: string, imageFile?: File) {
   const startTime = performance.now()
   logger.info(`createSku called`, {
     data: {
@@ -22,13 +24,38 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">, preGener
       goldType: skuData.goldType,
       stoneType: skuData.stoneType,
       preGeneratedId: preGeneratedId ? "provided" : "not provided",
+      hasImageFile: !!imageFile,
     },
   })
 
   // Create Supabase client with service role key for server actions
   const supabase = createServiceClient()
+  let uploadedImageUrl: string | null = null
 
   try {
+    // Handle image upload if file is provided
+    if (imageFile && preGeneratedId) {
+      const imagePath = generateSkuImagePath(preGeneratedId, imageFile.name)
+      const uploadResult = await uploadImageToSupabase(imageFile, "product-images", imagePath)
+
+      if (!uploadResult.success) {
+        logger.error(`Failed to upload image during SKU creation`, {
+          data: { name: skuData.name, preGeneratedId },
+          error: uploadResult.error,
+        })
+        return {
+          success: false,
+          error: `Image upload failed: ${uploadResult.error}`,
+          sku: null,
+        }
+      }
+
+      uploadedImageUrl = uploadResult.url!
+      logger.debug(`Image uploaded successfully during SKU creation`, {
+        data: { name: skuData.name, imageUrl: uploadedImageUrl },
+      })
+    }
+
     // Format data for Supabase
     const supabaseSkuData = {
       // Only include sku_id if a pre-generated ID is provided
@@ -41,7 +68,7 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">, preGener
       stone_type: skuData.stoneType,
       diamond_type: skuData.diamondType || null,
       weight: skuData.weight || null,
-      image_url: skuData.image || "/placeholder.svg?height=80&width=80",
+      image_url: uploadedImageUrl || skuData.image || "/placeholder.svg?height=80&width=80",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
@@ -54,6 +81,7 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">, preGener
         goldType: skuData.goldType,
         stoneType: skuData.stoneType,
         hasPreGeneratedId: !!preGeneratedId,
+        hasUploadedImage: !!uploadedImageUrl,
       },
     })
 
@@ -61,6 +89,14 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">, preGener
     const { data, error } = await supabase.from("skus").insert(supabaseSkuData).select()
 
     if (error) {
+      // If database insertion fails and we uploaded an image, clean it up
+      if (uploadedImageUrl) {
+        await deleteImageFromSupabase(uploadedImageUrl)
+        logger.debug(`Cleaned up uploaded image after database error`, {
+          data: { imageUrl: uploadedImageUrl },
+        })
+      }
+
       const duration = performance.now() - startTime
       logger.error(`Error creating SKU in Supabase`, {
         data: { name: skuData.name },
@@ -81,12 +117,21 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">, preGener
         collection: skuData.collection,
         goldType: skuData.goldType,
         stoneType: skuData.stoneType,
+        hasImage: !!uploadedImageUrl,
       },
       duration,
     })
 
     return { success: true, sku: data[0] }
   } catch (error) {
+    // If any unexpected error occurs and we uploaded an image, clean it up
+    if (uploadedImageUrl) {
+      await deleteImageFromSupabase(uploadedImageUrl)
+      logger.debug(`Cleaned up uploaded image after unexpected error`, {
+        data: { imageUrl: uploadedImageUrl },
+      })
+    }
+
     const duration = performance.now() - startTime
     logger.error(`Unexpected error in createSku`, {
       data: { name: skuData.name },
@@ -105,6 +150,39 @@ export async function deleteSku(skuId: string) {
   const supabase = createServiceClient()
 
   try {
+    // First, get the SKU to check if it has an image to delete
+    const { data: skuData, error: fetchError } = await supabase
+      .from("skus")
+      .select("image_url")
+      .eq("sku_id", skuId)
+      .single()
+
+    if (fetchError) {
+      const duration = performance.now() - startTime
+      logger.error(`Error fetching SKU for deletion`, {
+        data: { skuId },
+        error: fetchError,
+        duration,
+      })
+      return { success: false, error: fetchError.message }
+    }
+
+    // Delete associated image if it exists and is not a placeholder
+    if (skuData.image_url && !skuData.image_url.includes("placeholder.svg")) {
+      const deleteImageResult = await deleteImageFromSupabase(skuData.image_url)
+      if (!deleteImageResult.success) {
+        // Log warning but don't fail the SKU deletion
+        logger.warn(`Failed to delete associated image during SKU deletion`, {
+          data: { skuId, imageUrl: skuData.image_url },
+          error: deleteImageResult.error,
+        })
+      } else {
+        logger.debug(`Successfully deleted associated image during SKU deletion`, {
+          data: { skuId, imageUrl: skuData.image_url },
+        })
+      }
+    }
+
     logger.debug(`Deleting SKU from Supabase`, { data: { skuId } })
 
     // Delete SKU from Supabase
