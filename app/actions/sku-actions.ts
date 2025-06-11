@@ -16,6 +16,24 @@ import type { SKU } from "@/types"
  */
 export async function createSku(skuData: Omit<SKU, "id" | "createdAt">, preGeneratedId?: string, imageFile?: File) {
   const startTime = performance.now()
+
+  // 🔍 DEBUG LOGGING - Function entry
+  console.log("🔍 createSku DEBUG - Function called with:", {
+    skuData: {
+      name: skuData.name,
+      image: skuData.image,
+      hasImageProperty: !!skuData.image,
+      imageType: typeof skuData.image,
+    },
+    preGeneratedId,
+    imageFile: {
+      hasImageFile: !!imageFile,
+      fileName: imageFile?.name,
+      fileSize: imageFile?.size,
+      fileType: imageFile?.type,
+    },
+  })
+
   logger.info(`createSku called`, {
     data: {
       name: skuData.name,
@@ -35,8 +53,22 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">, preGener
   try {
     // Handle image upload if file is provided
     if (imageFile && preGeneratedId) {
+      // 🔍 DEBUG LOGGING - Starting image upload
       const imagePath = generateSkuImagePath(preGeneratedId, imageFile.name)
+      console.log("🔍 createSku DEBUG - Starting image upload:", {
+        preGeneratedId,
+        fileName: imageFile.name,
+        imagePath,
+      })
+
       const uploadResult = await uploadImageToSupabase(imageFile, "product-images", imagePath)
+
+      // 🔍 DEBUG LOGGING - Upload result
+      console.log("🔍 createSku DEBUG - Upload result:", {
+        success: uploadResult.success,
+        url: uploadResult.url,
+        error: uploadResult.error,
+      })
 
       if (!uploadResult.success) {
         logger.error(`Failed to upload image during SKU creation`, {
@@ -53,6 +85,13 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">, preGener
       uploadedImageUrl = uploadResult.url!
       logger.debug(`Image uploaded successfully during SKU creation`, {
         data: { name: skuData.name, imageUrl: uploadedImageUrl },
+      })
+    } else {
+      // 🔍 DEBUG LOGGING - Skipping image upload
+      console.log("🔍 createSku DEBUG - Skipping image upload:", {
+        hasImageFile: !!imageFile,
+        hasPreGeneratedId: !!preGeneratedId,
+        reason: !imageFile ? "No image file" : "No preGenerated ID",
       })
     }
 
@@ -72,6 +111,14 @@ export async function createSku(skuData: Omit<SKU, "id" | "createdAt">, preGener
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
+
+    // 🔍 DEBUG LOGGING - Database data
+    console.log("🔍 createSku DEBUG - Database data:", {
+      image_url: uploadedImageUrl || skuData.image || "/placeholder.svg?height=80&width=80",
+      uploadedImageUrl,
+      skuDataImage: skuData.image,
+      finalImageUrl: uploadedImageUrl || skuData.image || "/placeholder.svg?height=80&width=80",
+    })
 
     logger.debug(`Inserting SKU into Supabase`, {
       data: {

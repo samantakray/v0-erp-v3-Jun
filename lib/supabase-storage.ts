@@ -83,6 +83,14 @@ export async function uploadImageToSupabase(
   path: string,
 ): Promise<{ success: boolean; url?: string; error?: string }> {
   try {
+    // 🔍 DEBUG LOGGING - Starting upload
+    console.log("🔍 uploadImageToSupabase DEBUG - Starting upload:", {
+      fileName: file.name,
+      fileSize: file.size,
+      bucket,
+      path,
+    })
+
     // Validate file first
     const validation = await validateImageFile(file)
     if (!validation.isValid) {
@@ -98,6 +106,14 @@ export async function uploadImageToSupabase(
       upsert: true, // Allow overwriting existing files
     })
 
+    // 🔍 DEBUG LOGGING - Supabase upload response
+    console.log("🔍 uploadImageToSupabase DEBUG - Supabase upload response:", {
+      data,
+      error,
+      hasData: !!data,
+      hasError: !!error,
+    })
+
     if (error) {
       console.error("Upload error:", error)
       return {
@@ -108,6 +124,13 @@ export async function uploadImageToSupabase(
 
     // Get public URL
     const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path)
+
+    // 🔍 DEBUG LOGGING - Public URL generation
+    console.log("🔍 uploadImageToSupabase DEBUG - Public URL generation:", {
+      urlData,
+      publicUrl: urlData.publicUrl,
+      hasPublicUrl: !!urlData.publicUrl,
+    })
 
     return {
       success: true,

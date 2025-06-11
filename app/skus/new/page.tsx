@@ -106,6 +106,16 @@ export default function NewSKUPage() {
         // Generate a temporary SKU ID for the image path
         const tempSkuId = `SKU-${Date.now()}`
 
+        // 🔍 DEBUG LOGGING - Before createSku call
+        console.log("🔍 Form DEBUG - Before createSku call:", {
+          imageUrl,
+          tempSkuId,
+          skuData: {
+            name: `${category} - ${goldType}`,
+            image: imageUrl,
+          },
+        })
+
         const result = await createSku(
           {
             name: `${category} - ${goldType}`, // Generate a basic name
@@ -118,7 +128,11 @@ export default function NewSKUPage() {
             image: imageUrl,
           },
           tempSkuId,
+          // NOTE: Currently no imageFile is being passed here!
         )
+
+        // 🔍 DEBUG LOGGING - createSku result
+        console.log("🔍 Form DEBUG - createSku result:", result)
 
         if (!result.success) {
           throw new Error(result.error || "Failed to create SKU")
@@ -161,6 +175,16 @@ export default function NewSKUPage() {
         // Generate a temporary SKU ID for each SKU
         const tempSkuId = `SKU-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
 
+        // 🔍 DEBUG LOGGING - Before createSku call for multiple
+        console.log("🔍 Form DEBUG - Before createSku call (multiple):", {
+          imageUrl: sku.imageUrl,
+          tempSkuId,
+          skuData: {
+            name: `${sku.category} - ${sku.goldType}`,
+            image: sku.imageUrl,
+          },
+        })
+
         const result = await createSku(
           {
             name: `${sku.category} - ${sku.goldType}`, // Generate a basic name
@@ -173,7 +197,11 @@ export default function NewSKUPage() {
             image: sku.imageUrl,
           },
           tempSkuId,
+          // NOTE: Currently no imageFile is being passed here either!
         )
+
+        // 🔍 DEBUG LOGGING - createSku result for multiple
+        console.log("🔍 Form DEBUG - createSku result (multiple):", result)
 
         results.push(result)
 
