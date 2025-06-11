@@ -22,6 +22,33 @@ export const COLLECTION_NAME = {
   FLORAL: "Floral",
   ROYAL: "Royal",
   MIDNIGHT: "Midnight",
+  ART_CARVED: "Art Carved",
+    AZULIK: "Azulik",
+    CARNIVAL: "Carnival",
+    CARNIVAL_BUNCH: "Carnival Bunch",
+    CATERPILLAR: "Caterpillar",
+    CHAKRA: "Chakra",
+    CLOVER: "Clover",
+    CRESCENT: "Crescent",
+    DECO_CHIC: "Deco Chic",
+    EMBRACE: "Embrace",
+    ETERNITY: "Eternity",
+    FLORAL_SYMPHONY: "Floral Symphony",
+    GEM_LACES: "Gem Laces",
+    JAIPORE: "Jaipore",
+    KALEIDOSCOPE: "Kaleidoscope",
+    MONACO: "Monaco",
+    PADMA: "Padma",
+    PEACOCK: "Peacock",
+    PEBBLES: "Pebbles",
+    PRISM_PERFECTION: "Prism Perfection",
+    RATAN: "Ratan",
+    ROCK_CANDY: "Rock Candy",
+    SUMMER: "Summer",
+    TALISMAN: "Talisman",
+    TUTTI_FRUTTI: "Tutti Frutti",
+
+
 } as const
 
 export type CollectionName = (typeof COLLECTION_NAME)[keyof typeof COLLECTION_NAME]
