@@ -269,12 +269,12 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                       <TableHeader>
                         <TableRow>
                           <TableHead>No.</TableHead>
-                          <TableHead>SKU ID Preview</TableHead>
+                          <TableHead>SKU ID</TableHead>
                           <TableHead>Category</TableHead>
-                          <TableHead>Collection</TableHead>
                           <TableHead>Size</TableHead>
                           <TableHead>Gold Type</TableHead>
                           <TableHead>Stone Type</TableHead>
+                          <TableHead>Collection</TableHead>
                           <TableHead>Image</TableHead>
                           <TableHead></TableHead>
                         </TableRow>
@@ -311,27 +311,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                                   </SelectContent>
                                 </Select>
                               </TableCell>
-                              <TableCell>
-                                <Select
-                                  value={sku.collection}
-                                  onValueChange={(value) => {
-                                    const newSkus = [...multipleSkus]
-                                    newSkus[index].collection = value
-                                    setMultipleSkus(newSkus)
-                                  }}
-                                >
-                                  <SelectTrigger className="w-[120px]">
-                                    <SelectValue placeholder="Collection" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {Object.values(COLLECTION_NAME).map((collection) => (
-                                      <SelectItem key={collection} value={collection}>
-                                        {collection}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
+                              
                               <TableCell>
                                 <div className="flex items-center space-x-1">
                                   <Input
@@ -398,6 +378,27 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                                           ))}
                                         </div>
                                       ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell>
+                                <Select
+                                  value={sku.collection}
+                                  onValueChange={(value) => {
+                                    const newSkus = [...multipleSkus]
+                                    newSkus[index].collection = value
+                                    setMultipleSkus(newSkus)
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[120px]">
+                                    <SelectValue placeholder="Collection" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {Object.values(COLLECTION_NAME).map((collection) => (
+                                      <SelectItem key={collection} value={collection}>
+                                        {collection}
+                                      </SelectItem>
+                                    ))}
                                   </SelectContent>
                                 </Select>
                               </TableCell>
