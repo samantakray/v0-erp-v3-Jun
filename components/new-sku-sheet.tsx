@@ -25,7 +25,19 @@ import { logger } from "@/lib/logger"
 import { ImageUpload } from "@/components/image-upload"
 
 export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
-  const [multipleSkus, setMultipleSkus] = useState([])
+  const [multipleSkus, setMultipleSkus] = useState([
+    {
+      category: "Necklace",
+      collection: COLLECTION_NAME.NONE, // Default collection
+      size: DEFAULT_SIZES["Necklace"] ?? 0, // Add fallback for missing default size
+      goldType: GOLD_TYPE.YELLOW_GOLD, // Use constant
+      stoneType: STONE_TYPE.NONE, // Use constant
+      diamondType: "",
+      weight: "",
+      imageUrl: "", // Changed from image: null to imageUrl: ""
+      imageFile: null, // Add this to store the actual File object
+    },
+  ])
   const [nextSequentialNumber, setNextSequentialNumber] = useState(null)
   const [formattedNumber, setFormattedNumber] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -54,6 +66,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
           diamondType: "",
           weight: "",
           imageUrl: "", // Changed from image: null to imageUrl: ""
+          imageFile: null, // Add this to store the actual File object
         },
       ])
 
@@ -94,9 +107,10 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   }
 
   // Handle image URL change for a specific SKU variant
-  const handleImageChange = (imageUrl, index) => {
+  const handleImageChange = (imageUrl, file, index) => {
     const newSkus = [...multipleSkus]
     newSkus[index].imageUrl = imageUrl
+    newSkus[index].imageFile = file // Store the File object
     setMultipleSkus(newSkus)
 
     // Clear any previous error for this index
@@ -167,7 +181,8 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
           stoneType: sku.stoneType,
           diamondType: sku.diamondType,
           weight: sku.weight,
-          image_url: sku.imageUrl || "/placeholder.svg?height=80&width=80", // Use the stored image URL
+          image: sku.imageUrl || "/placeholder.svg?height=80&width=80", // Use the stored image URL
+          imageFile: sku.imageFile, // Add the File object
         }
       })
 
@@ -311,7 +326,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                                   </SelectContent>
                                 </Select>
                               </TableCell>
-                              
+
                               <TableCell>
                                 <div className="flex items-center space-x-1">
                                   <Input
@@ -406,7 +421,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                                 <div className="w-[150px]">
                                   <ImageUpload
                                     value={sku.imageUrl}
-                                    onChange={(url) => handleImageChange(url, index)}
+                                    onChange={(url, file) => handleImageChange(url, file, index)}
                                     onError={(err) => handleImageError(err, index)}
                                     tempId={`sku-temp-${index}-${Date.now()}`}
                                     skuId={skuIdPreview !== "Generating..." ? skuIdPreview : undefined}
@@ -466,6 +481,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                           diamondType: "",
                           weight: "",
                           imageUrl: "", // Changed from image: null to imageUrl: ""
+                          imageFile: null, // Add this to store the actual File object
                         },
                       ])
                     }}

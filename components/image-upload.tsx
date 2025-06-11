@@ -1,337 +1,185 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useRef, useCallback } from "react"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Upload, X, RefreshCw, Eye, Trash2 } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { uploadImageToSupabase, validateImageFile, generateSkuImagePath } from "@/lib/supabase-storage"
+import { useState } from "react"
+import { useSupabaseClient } from "@supabase/auth-helpers-react"
+import { v4 as uuidv4 } from "uuid"
 
 interface ImageUploadProps {
-  value?: string // Current image URL
-  onChange: (url: string | null) => void
-  onFileChange?: (file: File | null) => void // Optional callback for file object
-  skuId?: string // Optional SKU ID for permanent storage path
-  disabled?: boolean
-  className?: string
-  showPreview?: boolean
-  allowDelete?: boolean
-  maxSizeMB?: number
-  acceptedTypes?: string[]
+  value?: string
+  onChange: (url: string, file: File | null) => void
+  onError?: (error: string) => void
+  tempId?: string
+  skuId?: string
+  compact?: boolean
 }
 
-interface UploadState {
-  isUploading: boolean
-  progress: number
-  error: string | null
-  retryCount: number
-}
+const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange, onError, tempId, skuId, compact }) => {
+  const supabaseClient = useSupabaseClient()
+  const [imageUrl, setImageUrl] = useState(value || "")
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
-const MAX_RETRY_ATTEMPTS = 3
-const DEFAULT_ACCEPTED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
+  const generateSkuImagePath = (skuId: string, fileName: string) => {
+    const fileExtension = fileName.slice(((fileName.lastIndexOf(".") - 1) >>> 0) + 2)
+    return `skus/${skuId}/${uuidv4()}.${fileExtension}`
+  }
 
-export function ImageUpload({
-  value,
-  onChange,
-  onFileChange,
-  skuId,
-  disabled = false,
-  className,
-  showPreview = true,
-  allowDelete = true,
-  maxSizeMB = 5,
-  acceptedTypes = DEFAULT_ACCEPTED_TYPES,
-}: ImageUploadProps) {
-  const [uploadState, setUploadState] = useState<UploadState>({
-    isUploading: false,
-    progress: 0,
-    error: null,
-    retryCount: 0,
-  })
-  const [isDragOver, setIsDragOver] = useState(false)
-  const [showPreviewModal, setShowPreviewModal] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const uploadImageToSupabase = async (file: File, bucketName: string, path: string) => {
+    try {
+      const { data, error } = await supabaseClient.storage.from(bucketName).upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+      })
 
-  const resetUploadState = useCallback(() => {
-    setUploadState({
-      isUploading: false,
-      progress: 0,
-      error: null,
-      retryCount: 0,
-    })
-  }, [])
-
-  const handleFileSelect = useCallback(
-    async (file: File) => {
-      if (disabled) return
-
-      resetUploadState()
-      setUploadState((prev) => ({ ...prev, isUploading: true, progress: 10 }))
-
-      try {
-        // Validate file
-        const validation = await validateImageFile(file)
-        if (!validation.isValid) {
-          setUploadState((prev) => ({
-            ...prev,
-            isUploading: false,
-            error: validation.error || "File validation failed",
-          }))
-          return
-        }
-
-        setUploadState((prev) => ({ ...prev, progress: 30 }))
-
-        // Generate upload path
-        const uploadPath = generateSkuImagePath(skuId, file.name)
-
-        setUploadState((prev) => ({ ...prev, progress: 50 }))
-
-        // Upload to Supabase
-        const uploadResult = await uploadImageToSupabase(file, "product-images", uploadPath)
-
-        if (!uploadResult.success) {
-          throw new Error(uploadResult.error || "Upload failed")
-        }
-
-        setUploadState((prev) => ({ ...prev, progress: 90 }))
-
-        // Success
-        onChange(uploadResult.url || null)
-        onFileChange?.(file)
-
-        setUploadState((prev) => ({ ...prev, progress: 100, isUploading: false }))
-
-        // Clear progress after a short delay
-        setTimeout(() => {
-          setUploadState((prev) => ({ ...prev, progress: 0 }))
-        }, 1000)
-      } catch (error) {
-        console.error("Upload error:", error)
-        setUploadState((prev) => ({
-          ...prev,
-          isUploading: false,
-          error: error instanceof Error ? error.message : "Upload failed",
-        }))
+      if (error) {
+        console.error("Supabase upload error:", error)
+        return { success: false, error: error.message }
       }
-    },
-    [disabled, onChange, onFileChange, skuId, resetUploadState],
-  )
 
-  const handleRetry = useCallback(async () => {
-    if (uploadState.retryCount >= MAX_RETRY_ATTEMPTS) {
-      setUploadState((prev) => ({
-        ...prev,
-        error: "Maximum retry attempts reached. Please try again later.",
-      }))
+      const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucketName}/${data.path}`
+      return { success: true, url }
+    } catch (error: any) {
+      console.error("Error uploading to Supabase:", error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  const deleteImageFromSupabase = async (imageUrl: string) => {
+    try {
+      const imagePath = imageUrl.replace(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/`,
+        "",
+      )
+
+      const { error } = await supabaseClient.storage.from("product-images").remove([imagePath])
+
+      if (error) {
+        console.error("Supabase delete error:", error)
+        return { success: false, error: error.message }
+      }
+
+      return { success: true }
+    } catch (error: any) {
+      console.error("Error deleting from Supabase:", error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) {
       return
     }
 
-    if (fileInputRef.current?.files?.[0]) {
-      setUploadState((prev) => ({ ...prev, retryCount: prev.retryCount + 1 }))
-      await handleFileSelect(fileInputRef.current!.files![0])
-    }
-  }, [uploadState.retryCount, handleFileSelect])
+    const file = e.target.files[0]
+    setSelectedFile(file)
+    setIsUploading(true)
+    setUploadError(null)
 
-  const handleInputChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0]
-      if (file) {
-        handleFileSelect(file)
-      }
-    },
-    [handleFileSelect],
-  )
+    try {
+      // If we have a skuId, use it to generate a path
+      const path = skuId ? generateSkuImagePath(skuId, file.name) : `temp/${tempId}/${file.name}`
 
-  const handleDragOver = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault()
-      if (!disabled) {
-        setIsDragOver(true)
-      }
-    },
-    [disabled],
-  )
+      const result = await uploadImageToSupabase(file, "product-images", path)
 
-  const handleDragLeave = useCallback((event: React.DragEvent) => {
-    event.preventDefault()
-    setIsDragOver(false)
-  }, [])
-
-  const handleDrop = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault()
-      setIsDragOver(false)
-
-      if (disabled) return
-
-      const files = Array.from(event.dataTransfer.files)
-      const imageFile = files.find((file) => acceptedTypes.includes(file.type))
-
-      if (imageFile) {
-        handleFileSelect(imageFile)
+      if (result.success && result.url) {
+        setImageUrl(result.url)
+        // Pass both URL and File to the parent component
+        onChange(result.url, file)
       } else {
-        setUploadState((prev) => ({
-          ...prev,
-          error: `Please select a valid image file (${acceptedTypes.join(", ")})`,
-        }))
+        setUploadError(result.error || "Failed to upload image")
+        onError?.(result.error || "Failed to upload image")
       }
-    },
-    [disabled, acceptedTypes, handleFileSelect],
-  )
-
-  const handleDelete = useCallback(() => {
-    if (disabled) return
-    onChange(null)
-    onFileChange?.(null)
-    resetUploadState()
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
+    } catch (error) {
+      console.error("Error uploading image:", error)
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
+      setUploadError(errorMessage)
+      onError?.(errorMessage)
+    } finally {
+      setIsUploading(false)
     }
-  }, [disabled, onChange, onFileChange, resetUploadState])
+  }
 
-  const openFileDialog = useCallback(() => {
-    if (!disabled && fileInputRef.current) {
-      fileInputRef.current.click()
+  const handleRemove = async () => {
+    if (!imageUrl) return
+
+    setIsDeleting(true)
+
+    try {
+      // Only attempt to delete if it's not a placeholder
+      if (!imageUrl.includes("placeholder.svg")) {
+        const result = await deleteImageFromSupabase(imageUrl)
+        if (!result.success) {
+          console.error("Failed to delete image:", result.error)
+        }
+      }
+
+      setImageUrl("")
+      setSelectedFile(null)
+      // Pass null for both URL and File
+      onChange("", null)
+    } catch (error) {
+      console.error("Error removing image:", error)
+    } finally {
+      setIsDeleting(false)
     }
-  }, [disabled])
+  }
+
+  const placeholderImageUrl = "/placeholder.svg"
 
   return (
-    <div className={cn("space-y-4", className)}>
-      {/* Upload Area */}
-      <div
-        className={cn(
-          "relative border-2 border-dashed rounded-lg p-6 transition-colors",
-          isDragOver && !disabled ? "border-primary bg-primary/5" : "border-gray-300 hover:border-gray-400",
-          disabled && "opacity-50 cursor-not-allowed",
-          !disabled && "cursor-pointer",
-        )}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={openFileDialog}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={acceptedTypes.join(",")}
-          onChange={handleInputChange}
-          disabled={disabled}
-          className="hidden"
-        />
-
-        <div className="flex flex-col items-center justify-center space-y-3">
-          {uploadState.isUploading ? (
-            <>
-              <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm text-gray-600">Uploading image...</p>
-            </>
-          ) : (
-            <>
-              <Upload className="h-8 w-8 text-gray-400" />
-              <div className="text-center">
-                <p className="text-sm font-medium text-gray-900">Click to upload or drag and drop</p>
-                <p className="text-xs text-gray-500">
-                  {acceptedTypes.map((type) => type.split("/")[1].toUpperCase()).join(", ")} up to {maxSizeMB}MB
-                </p>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Progress Bar */}
-      {uploadState.isUploading && uploadState.progress > 0 && (
-        <div className="space-y-2">
-          <Progress value={uploadState.progress} className="w-full" />
-          <p className="text-xs text-gray-500 text-center">{uploadState.progress}% uploaded</p>
+    <div className={`relative ${compact ? "w-[120px] h-[120px]" : "w-[200px] h-[200px]"} rounded-md overflow-hidden`}>
+      {isUploading && (
+        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center z-10">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gray-900"></div>
         </div>
       )}
-
-      {/* Error Display */}
-      {uploadState.error && (
-        <Alert variant="destructive">
-          <AlertDescription className="flex items-center justify-between">
-            <span>{uploadState.error}</span>
-            {uploadState.retryCount < MAX_RETRY_ATTEMPTS && (
-              <Button variant="outline" size="sm" onClick={handleRetry} disabled={uploadState.isUploading}>
-                <RefreshCw className="h-3 w-3 mr-1" />
-                Retry
-              </Button>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Image Preview */}
-      {value && showPreview && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Badge variant="success" className="text-xs">
-              Image uploaded successfully
-            </Badge>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowPreviewModal(true)} disabled={disabled}>
-                <Eye className="h-3 w-3 mr-1" />
-                Preview
-              </Button>
-              {allowDelete && (
-                <Button variant="outline" size="sm" onClick={handleDelete} disabled={disabled}>
-                  <Trash2 className="h-3 w-3 mr-1" />
-                  Delete
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div className="relative w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
-            <img
-              src={value || "/placeholder.svg"}
-              alt="Uploaded image"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement
-                target.src = "/placeholder.svg?height=128&width=200&text=Image+Error"
-              }}
-            />
-          </div>
+      {isDeleting && (
+        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center z-10">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gray-900"></div>
         </div>
       )}
-
-      {/* Preview Modal */}
-      {showPreviewModal && value && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowPreviewModal(false)}
+      {uploadError && (
+        <div className="absolute inset-0 bg-red-100 text-red-500 flex items-center justify-center z-10">
+          {uploadError}
+        </div>
+      )}
+      <img src={imageUrl || placeholderImageUrl} alt="Uploaded Image" className="object-cover w-full h-full" />
+      <label className="absolute bottom-0 right-0 bg-white/75 p-1 rounded-tl-md cursor-pointer">
+        <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+          className="w-6 h-6"
         >
-          <div
-            className="relative bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+          />
+        </svg>
+      </label>
+      {imageUrl && imageUrl !== placeholderImageUrl && (
+        <button onClick={handleRemove} className="absolute top-0 right-0 bg-white/75 p-1 rounded-bl-md cursor-pointer">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="w-6 h-6"
           >
-            <Button
-              variant="outline"
-              size="sm"
-              className="absolute top-2 right-2 z-10"
-              onClick={() => setShowPreviewModal(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-            <img
-              src={value || "/placeholder.svg"}
-              alt="Image preview"
-              className="max-w-full max-h-[85vh] object-contain"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement
-                target.src = "/placeholder.svg?height=400&width=600&text=Image+Error"
-              }}
-            />
-          </div>
-        </div>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       )}
     </div>
   )
 }
+
+export default ImageUpload
