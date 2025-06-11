@@ -7,14 +7,29 @@ import { v4 as uuidv4 } from "uuid"
 
 interface ImageUploadProps {
   value?: string
-  onChange: (url: string, file: File | null) => void
-  onError?: (error: string) => void
-  tempId?: string
+  onChange: (url: string | null, file: File | null) => void
+  onFileChange?: (file: File | null) => void
   skuId?: string
+  disabled?: boolean
+  className?: string
+  showPreview?: boolean
+  allowDelete?: boolean
+  maxSizeMB?: number
+  acceptedTypes?: string[]
+  tempId?: string
   compact?: boolean
+  onError?: (error: string) => void
 }
 
-const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange, onError, tempId, skuId, compact }) => {
+const ImageUpload: React.FC<ImageUploadProps> = ({
+  value,
+  onChange,
+  onFileChange,
+  onError,
+  tempId,
+  skuId,
+  compact,
+}) => {
   const supabaseClient = useSupabaseClient()
   const [imageUrl, setImageUrl] = useState(value || "")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -88,6 +103,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange, onError, tem
         setImageUrl(result.url)
         // Pass both URL and File to the parent component
         onChange(result.url, file)
+        onFileChange?.(file)
       } else {
         setUploadError(result.error || "Failed to upload image")
         onError?.(result.error || "Failed to upload image")
@@ -119,7 +135,8 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange, onError, tem
       setImageUrl("")
       setSelectedFile(null)
       // Pass null for both URL and File
-      onChange("", null)
+      onChange(null, null)
+      onFileChange?.(null)
     } catch (error) {
       console.error("Error removing image:", error)
     } finally {
@@ -182,4 +199,4 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ value, onChange, onError, tem
   )
 }
 
-export default ImageUpload
+export { ImageUpload }
