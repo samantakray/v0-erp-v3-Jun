@@ -1,9 +1,10 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useSupabaseClient } from "@supabase/auth-helpers-react"
 import { v4 as uuidv4 } from "uuid"
+import { useDropzone } from "react-dropzone"
 
 interface ImageUploadProps {
   value?: string
@@ -29,6 +30,12 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   tempId,
   skuId,
   compact,
+  disabled,
+  showPreview = true,
+  allowDelete = true,
+  maxSizeMB = 2,
+  acceptedTypes = ["image/jpeg", "image/png", "image/gif"],
+  className,
 }) => {
   const supabaseClient = useSupabaseClient()
   const [imageUrl, setImageUrl] = useState(value || "")
@@ -36,6 +43,8 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   const [isUploading, setIsUploading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [showModal, setShowModal] = useState(false)
 
   const generateSkuImagePath = (skuId: string, fileName: string) => {
     const fileExtension = fileName.slice(((fileName.lastIndexOf(".") - 1) >>> 0) + 2)
@@ -44,10 +53,16 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
 
   const uploadImageToSupabase = async (file: File, bucketName: string, path: string) => {
     try {
-      const { data, error } = await supabaseClient.storage.from(bucketName).upload(path, file, {
-        cacheControl: "3600",
-        upsert: false,
-      })
+      const { data, error, progress } = await supabaseClient.storage
+        .from(bucketName)
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+        })
+        .on("progress", (progress) => {
+          const percentComplete = Math.round((progress.loaded / progress.total) * 100)
+          setUploadProgress(percentComplete)
+        })
 
       if (error) {
         console.error("Supabase upload error:", error)
@@ -89,11 +104,24 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     }
 
     const file = e.target.files[0]
+    await handleFileSelect(file)
+  }
+
+  const handleFileSelect = async (file: File) => {
     setSelectedFile(file)
     setIsUploading(true)
     setUploadError(null)
+    setUploadProgress(0)
 
     try {
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        throw new Error(`File size exceeds ${maxSizeMB}MB`)
+      }
+
+      if (!acceptedTypes.includes(file.type)) {
+        throw new Error(`File type ${file.type} is not supported`)
+      }
+
       // If we have a skuId, use it to generate a path
       const path = skuId ? generateSkuImagePath(skuId, file.name) : `temp/${tempId}/${file.name}`
 
@@ -115,6 +143,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       onError?.(errorMessage)
     } finally {
       setIsUploading(false)
+      setUploadProgress(0)
     }
   }
 
@@ -144,13 +173,45 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     }
   }
 
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      if (acceptedFiles.length > 0) {
+        handleFileSelect(acceptedFiles[0])
+      }
+    },
+    [
+      skuId,
+      tempId,
+      maxSizeMB,
+      acceptedTypes,
+      setImageUrl,
+      setSelectedFile,
+      setIsUploading,
+      setUploadError,
+      setUploadProgress,
+      onChange,
+      onFileChange,
+      onError,
+    ],
+  )
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: acceptedTypes.join(","),
+    maxSize: maxSizeMB * 1024 * 1024,
+    disabled: disabled || isUploading || isDeleting,
+  })
+
   const placeholderImageUrl = "/placeholder.svg"
 
   return (
-    <div className={`relative ${compact ? "w-[120px] h-[120px]" : "w-[200px] h-[200px]"} rounded-md overflow-hidden`}>
+    <div
+      className={`relative ${compact ? "w-[120px] h-[120px]" : "w-[200px] h-[200px]"} rounded-md overflow-hidden ${className}`}
+    >
       {isUploading && (
-        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center z-10">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gray-900"></div>
+        <div className="absolute inset-0 bg-gray-100 flex flex-col items-center justify-center z-10">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gray-900 mb-4"></div>
+          <p>Uploading: {uploadProgress}%</p>
         </div>
       )}
       {isDeleting && (
@@ -159,29 +220,38 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
         </div>
       )}
       {uploadError && (
-        <div className="absolute inset-0 bg-red-100 text-red-500 flex items-center justify-center z-10">
+        <div className="absolute inset-0 bg-red-100 text-red-500 flex items-center justify-center z-10 p-4 text-center">
           {uploadError}
+          <button
+            onClick={() => {
+              if (selectedFile) {
+                handleFileSelect(selectedFile)
+              } else {
+                setUploadError("No file to retry.")
+              }
+            }}
+            className="ml-2 px-2 py-1 bg-red-500 text-white rounded hover:bg-red-700"
+          >
+            Retry
+          </button>
         </div>
       )}
-      <img src={imageUrl || placeholderImageUrl} alt="Uploaded Image" className="object-cover w-full h-full" />
-      <label className="absolute bottom-0 right-0 bg-white/75 p-1 rounded-tl-md cursor-pointer">
-        <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-          className="w-6 h-6"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-          />
-        </svg>
-      </label>
-      {imageUrl && imageUrl !== placeholderImageUrl && (
+      <img
+        src={imageUrl || placeholderImageUrl}
+        alt="Uploaded Image"
+        className="object-cover w-full h-full cursor-pointer"
+        onClick={() => (showPreview && imageUrl ? setShowModal(true) : null)}
+      />
+      <div {...getRootProps()} className="absolute bottom-0 left-0 w-full bg-white/75 p-1 text-center cursor-pointer">
+        <input {...getInputProps()} />
+        {isDragActive ? (
+          <p className="text-sm">Drop the files here ...</p>
+        ) : (
+          <p className="text-sm">{disabled ? "Disabled" : "Click or drag to upload"}</p>
+        )}
+      </div>
+
+      {allowDelete && imageUrl && imageUrl !== placeholderImageUrl && (
         <button onClick={handleRemove} className="absolute top-0 right-0 bg-white/75 p-1 rounded-bl-md cursor-pointer">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -194,6 +264,33 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
+      )}
+
+      {showModal && imageUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="relative bg-white rounded-md max-w-4xl max-h-4xl overflow-hidden">
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-2 right-2 bg-white/75 p-1 rounded-full cursor-pointer"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                className="w-6 h-6"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <img
+              src={imageUrl || "/placeholder.svg"}
+              alt="Full Size Preview"
+              className="object-contain w-full h-full"
+            />
+          </div>
+        </div>
       )}
     </div>
   )
