@@ -37,40 +37,169 @@ The backend functionality is implemented using:
 
 ## Database Architecture
 
-The application uses Supabase (PostgreSQL) with the following structure:
+The application uses Supabase (PostgreSQL) with the following enhanced structure:
 
 \`\`\`mermaid
 erDiagram
-    SKUs {
+    CUSTOMERS {
         uuid id PK
-        string sku_id
-        string name
-        string category
-        string gold_type
-        string stone_type
+        text name
+        text contact_person
+        text email
+        text phone
+        boolean active
+        timestamp created_at
     }
     
-    Orders {
+    USERS {
         uuid id PK
-        string order_id
-        string order_type
+        text email
+        text name
+    }
+    
+    MANUFACTURERS {
+        uuid id PK
+        text name
+        integer current_load
+        integer past_job_count
+        numeric rating
+        boolean active
+        timestamp created_at
+    }
+    
+    SKUS {
+        uuid id PK
+        text sku_id
+        text name
+        text category
+        numeric size
+        text gold_type
+        text stone_type
+        text diamond_type
+        numeric weight
+        text image_url
+        varchar collection
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    ORDERS {
+        uuid id PK
+        text order_id
+        text order_type
         uuid customer_id FK
+        text customer_name
         date production_date
         date delivery_date
+        text status
+        text remarks
+        text action
+        timestamp created_at
+        timestamp updated_at
     }
     
-    Jobs {
+    ORDER_ITEMS {
         uuid id PK
-        string job_id
         uuid order_id FK
         uuid sku_id FK
-        string status
-        string current_phase
+        integer quantity
+        text size
+        text remarks
+        date individual_production_date
+        date individual_delivery_date
+        timestamp created_at
+        timestamp updated_at
     }
     
-    Orders ||--o{ Jobs : contains
-    SKUs ||--o{ Jobs : used_in
+    JOBS {
+        uuid id PK
+        text job_id
+        uuid order_id FK
+        uuid order_item_id FK
+        uuid sku_id FK
+        text status
+        uuid manufacturer_id FK
+        date production_date
+        date due_date
+        text current_phase
+        text size
+        jsonb stone_data
+        jsonb diamond_data
+        jsonb manufacturer_data
+        jsonb qc_data
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    JOB_HISTORY {
+        uuid id PK
+        uuid job_id FK
+        text status
+        text action
+        uuid user_id FK
+        jsonb data
+        timestamp created_at
+    }
+    
+    STONE_LOTS {
+        uuid id PK
+        text lot_number
+        text stone_type
+        integer quantity
+        numeric weight
+        text status
+        text shape
+        text quality
+        text type
+        text location
+        text stone_size
+        timestamp created_at
+    }
+    
+    DIAMOND_LOTS {
+        uuid id PK
+        text lot_number
+        integer quantity
+        numeric weight
+        text status
+        varchar shape
+        varchar quality
+        varchar size
+        numeric price
+        varchar stonegroup
+        text a_type
+        timestamp created_at
+    }
+    
+    CUSTOMERS ||--o{ ORDERS : places
+    ORDERS ||--o{ ORDER_ITEMS : contains
+    ORDER_ITEMS ||--o{ JOBS : generates
+    SKUS ||--o{ ORDER_ITEMS : specified_in
+    SKUS ||--o{ JOBS : used_in
+    MANUFACTURERS ||--o{ JOBS : assigned_to
+    JOBS ||--o{ JOB_HISTORY : tracked_in
+    USERS ||--o{ JOB_HISTORY : performs
 \`\`\`
+
+## ID Generation System
+
+The application uses sophisticated ID generation functions:
+
+### SKU ID Generation
+- Uses a global sequence `sku_sequential_number_seq`
+- Format: `[Category Prefix]-[Sequential Number]`
+- Supports 15+ product categories with specific prefixes
+- Automatic generation with manual override capability
+
+### Order ID Generation
+- Format: `O-[4-digit number]`
+- Finds maximum existing ID and increments
+- Handles gaps in sequence gracefully
+
+### Job ID Generation
+- Format: `J-[4-digit number]`
+- Simple counter-based generation
+- Ensures unique job identifiers
 
 ## Supabase Implementation
 
@@ -81,7 +210,8 @@ The application uses Supabase as its primary database and backend service. Supab
 1. **PostgreSQL Database**: For storing all application data
 2. **Authentication**: For user management and access control
 3. **Row-Level Security (RLS)**: For data access control
-4. **Real-time Subscriptions**: For live updates
+4. **Storage**: For file and image management
+5. **Real-time Subscriptions**: For live updates
 
 ### Implementation Approach
 
@@ -115,6 +245,21 @@ export const createServiceClient = () => {
 }
 \`\`\`
 
+## Row-Level Security (RLS)
+
+The database implements comprehensive RLS policies:
+
+### Policy Structure
+Each table has consistent policies:
+- **Anonymous Read Access**: All tables allow SELECT operations without authentication
+- **Authenticated Full Access**: Authenticated users get full CRUD operations
+- **Service Role Operations**: Service role can perform all operations for server-side actions
+
+### Security Benefits
+1. **Data Protection**: Prevents unauthorized access to sensitive data
+2. **Flexible Access Control**: Different permission levels for different user types
+3. **Server-Side Safety**: Service role ensures server actions can operate without user authentication
+
 ## Authentication Flow
 
 The application uses Supabase Authentication with the following flow:
@@ -123,6 +268,21 @@ The application uses Supabase Authentication with the following flow:
 2. Supabase Auth validates credentials and returns JWT
 3. JWT is stored in cookies for subsequent requests
 4. Protected routes and API endpoints verify JWT before granting access
+5. RLS policies automatically enforce access control at the database level
+
+## Inventory Management
+
+The system includes comprehensive inventory management:
+
+### Stone Inventory
+- **Stone Lots**: Tracks precious stones (Ruby, Emerald, Sapphire)
+- **Attributes**: Shape, quality, size, location, weight
+- **Status Tracking**: Available, Reserved, Used
+
+### Diamond Inventory
+- **Diamond Lots**: Tracks diamond inventory
+- **Detailed Attributes**: Shape, quality, size, price, stone group
+- **Classification**: A-type classification for advanced categorization
 
 ## Deployment Architecture
 
@@ -132,6 +292,5 @@ The application is deployed on Vercel with the following configuration:
 2. **Preview Environments**: Pull request deployments
 3. **Environment Variables**: Configured in Vercel dashboard
 4. **Edge Functions**: Used for global distribution and low latency
-\`\`\`
-
-Now, let's update the API reference document with more details about the Supabase API implementation:
+5. **Database**: Hosted on Supabase with automatic backups
+6. **Storage**: Supabase Storage for file and image management
