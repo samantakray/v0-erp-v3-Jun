@@ -149,6 +149,14 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   }
 
   const handleCreateSkusBatch = async () => {
+
+// Check if any SKU has a category of "None"
+const hasInvalidCategory = multipleSkus.some(sku => sku.category === "None");
+if (hasInvalidCategory) {
+  setError("Cannot create SKUs: Category cannot be None.");
+  return;
+}
+
     if (multipleSkus.length === 0) {
       setError("Cannot create SKUs: No variants added.")
       return
@@ -383,7 +391,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                                       setMultipleSkus(newSkus)
                                     }}
                                     className="w-[80px]"
-                                    disabled={!hasSizeConstraints}
+                                    //disabled={!hasSizeConstraints}
                                   />
                                   {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
                                 </div>
@@ -512,18 +520,19 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
                   <Button
                     type="button"
                     onClick={() => {
+                      const lastSku = multipleSkus[multipleSkus.length - 1];
                       setMultipleSkus([
                         ...multipleSkus,
                         {
-                          category: "Necklace",
-                          collection: COLLECTION_NAME.NONE, // Default collection
-                          size: DEFAULT_SIZES["Necklace"] ?? 0, // Add fallback
-                          goldType: GOLD_TYPE.YELLOW_GOLD, // Use constant
-                          stoneType: STONE_TYPE.NONE, // Use constant
+                          category: "None",
+                          collection: lastSku.collection, // Use collection from the last SKU
+                          size: 0,
+                          goldType: lastSku.goldType, // Use goldType from the last SKU
+                          stoneType: STONE_TYPE.NONE,
                           diamondType: "",
                           weight: "",
-                          imageUrl: "", // Changed from image: null to imageUrl: ""
-                          imageFile: null, // Add this to store the actual File object
+                          imageUrl: "",
+                          imageFile: null,
                         },
                       ])
                     }}

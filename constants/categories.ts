@@ -13,6 +13,7 @@ export const SKU_CATEGORY = {
   TYRE: "Tyre",
   KADI: "Kadi",
   EARRING_PART: "Earring Part",
+  NONE: "None",
 } as const
 
 export type SkuCategory = (typeof SKU_CATEGORY)[keyof typeof SKU_CATEGORY]
@@ -258,6 +259,7 @@ export const CATEGORY_CODES: Record<SkuCategory, string> = {
   [SKU_CATEGORY.TYRE]: "TY",
   [SKU_CATEGORY.KADI]: "EX", // Using EX as per database function
   [SKU_CATEGORY.EARRING_PART]: "EX", // Using EX as per database function
+  [SKU_CATEGORY.NONE]: "??",
 }
 
 /**
@@ -321,7 +323,7 @@ export const SIZE_DENOMINATIONS: Partial<Record<SkuCategory, number>> = {
 export const SIZE_UNITS: Partial<Record<SkuCategory, string>> = {
   [SKU_CATEGORY.RING]: "mm",
   [SKU_CATEGORY.BRACELET]: "inch",
-  [SKU_CATEGORY.BANGLE]: "inch",
+  [SKU_CATEGORY.BANGLE]: "ana",
   [SKU_CATEGORY.NECKLACE]: "inch",
   [SKU_CATEGORY.PENDANT]: "inch",
   [SKU_CATEGORY.CHAIN]: "inch",
