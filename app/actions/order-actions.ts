@@ -567,3 +567,59 @@ export async function getPredictedNextOrderNumber() {
     return { success: false, error: "An unexpected error occurred", predictedOrderId: null }
   }
 }
+
+/**
+ * Gets the count of open orders (orders not marked as Completed or Cancelled)
+ * @returns The count of open orders
+ */
+export async function getOpenOrderCount(): Promise<{ count: number; error?: string }> {
+  const startTime = performance.now()
+  logger.info(`getOpenOrderCount called`)
+
+  // Check if we're using mocks
+  const useMocks = process.env.NEXT_PUBLIC_USE_MOCKS === "true"
+  if (useMocks) {
+    // In mock mode, return a mock count
+    const duration = performance.now() - startTime
+    logger.info(`getOpenOrderCount completed with mock data`, {
+      data: { count: 24 },
+      duration,
+    })
+    return { count: 24 }
+  }
+
+  // Create Supabase client with service role key for server actions
+  const supabase = createServiceClient()
+
+  try {
+    // Get count of open orders (status not 'Completed' or 'Cancelled')
+    const { count, error } = await supabase
+      .from("orders")
+      .select("*", { count: "exact", head: true })
+      .not("status", "in", '("Completed","Cancelled")')
+
+    if (error) {
+      const duration = performance.now() - startTime
+      logger.error(`Error fetching open order count from Supabase`, {
+        error,
+        duration,
+      })
+      return { count: 0, error: error.message }
+    }
+
+    const duration = performance.now() - startTime
+    logger.info(`getOpenOrderCount completed successfully`, {
+      data: { count: count || 0 },
+      duration,
+    })
+
+    return { count: count || 0 }
+  } catch (error) {
+    const duration = performance.now() - startTime
+    logger.error(`Unexpected error in getOpenOrderCount`, {
+      error: error instanceof Error ? error.message : String(error),
+      duration,
+    })
+    return { count: 0, error: "An unexpected error occurred" }
+  }
+}

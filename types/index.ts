@@ -17,6 +17,56 @@ export type SKU = {
   createdAt?: string
 }
 
+// Define the type for a single stone lot from the database
+export interface StoneLotData {
+  id: string
+  lot_number: string
+  stone_type: string
+  size: string
+  quantity: number
+  weight: number
+  available: boolean
+}
+
+// Define the type for an allocated stone row in the form
+export interface StoneAllocation {
+  clientId: string // For React key prop
+  lot_number: string
+  stone_type: string
+  size: string
+  quantity: number
+  weight: number
+  available_quantity?: number // Store available quantity for validation
+  available_weight?: number // Store available weight for validation
+}
+
+// Define the type for a single diamond lot from the database
+export interface DiamondLotData {
+  id: string
+  lot_number: string
+  size: string
+  shape: string
+  quality: string
+  a_type: string // As per schema
+  stonegroup: string // As per schema
+  quantity: number // Available quantity in the lot
+  weight: number // Total weight of the lot in carats
+  price: number // As per schema
+  status: string
+}
+
+// Define the type for an allocated diamond row in the form
+export interface DiamondAllocation {
+  clientId: string // For React key prop
+  lot_number: string
+  size: string
+  shape: string
+  quality: string
+  quantity: number // User-allocated quantity
+  weight: number // User-allocated weight in carats (direct input)
+  available_quantity?: number // Stored from DiamondLotData for validation
+}
+
 export interface Job {
   id: string
   orderId: string
@@ -25,7 +75,7 @@ export interface Job {
   category: string
   goldType: string
   stoneType: string
-  diamondType: string
+  diamondType: string // This might become obsolete or change with new diamond allocation
   size: string // Note: This is still a string in the Job interface
   status: JobStatus // Updated to use the JobStatus type
   manufacturer: string
@@ -34,8 +84,19 @@ export interface Job {
   createdAt: string
   image: string
   currentPhase: JobPhase // Updated to use the JobPhase type
-  stoneData?: any
-  diamondData?: any
+  stoneData?: {
+    allocations: StoneAllocation[]
+    total_quantity: number
+    total_weight: number
+    timestamp: string
+  }
+  diamondData?: {
+    // Updated structure for diamondData
+    allocations: DiamondAllocation[]
+    total_quantity: number
+    total_weight: number
+    timestamp: string
+  }
   manufacturerData?: any
   qcData?: any
 }
