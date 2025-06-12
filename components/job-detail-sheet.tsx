@@ -24,6 +24,7 @@ import StoneAllocationRow from "@/components/stone-allocation-row"
 import DiamondAllocationRow from "@/components/diamond-allocation-row" // Import the new component
 import type { Job, StoneLotData, StoneAllocation, DiamondLotData, DiamondAllocation } from "@/types" // Added Diamond types
 import type { JobPhase } from "@/constants/job-workflow" // Declare the JobPhase variable
+import { generateClientId } from "@/lib/client-id-generator"
 
 // Mock manufacturers data (can be replaced by fetchManufacturers if available)
 const MANUFACTURERS = [
