@@ -108,9 +108,20 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
 
   // Handle image URL change for a specific SKU variant
   const handleImageChange = (imageUrl, file, index) => {
+    // 🔍 DEBUG LOGGING - Client-side upload state tracking
+    console.log("🔍 NewSKUSheet DEBUG - Image change:", {
+      index,
+      hasUrl: !!imageUrl,
+      hasFile: !!file,
+      fileName: file?.name,
+      shouldReuseExisting: !!imageUrl,
+      willClearFile: !!imageUrl // File will be cleared if URL exists
+    })
+
     const newSkus = [...multipleSkus]
     newSkus[index].imageUrl = imageUrl
-    newSkus[index].imageFile = file // Store the File object
+    // 🔍 OPTION A IMPLEMENTATION: Clear file if URL exists (successful upload)
+    newSkus[index].imageFile = imageUrl ? null : file
     setMultipleSkus(newSkus)
 
     // Clear any previous error for this index
@@ -167,9 +178,24 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
       setIsPredictedNumber(false)
 
       // Prepare SKUs with generated SKU IDs using the actual number
-      const skusToCreate = multipleSkus.map((sku) => {
+      const skusToCreate = multipleSkus.map((sku, index) => {
         const prefix = getCategoryCode(sku.category) || "OO"
         const skuId = `${prefix}-${sequenceResult.formattedNumber}`
+
+        // 🔍 DEBUG LOGGING - Batch creation input analysis
+        console.log("🔍 NewSKUSheet DEBUG - Preparing SKU for batch:", {
+          index,
+          skuId,
+          category: sku.category,
+          hasImageUrl: !!sku.imageUrl,
+          hasImageFile: !!sku.imageFile,
+          imageUrl: sku.imageUrl,
+          fileName: sku.imageFile?.name,
+          fileSize: sku.imageFile?.size,
+          shouldSkipFileUpload: !!sku.imageUrl && sku.imageUrl !== "/placeholder.svg?height=80&width=80",
+          finalImageValue: sku.imageUrl || "/placeholder.svg?height=80&width=80",
+          note: sku.imageFile ? "File retained (upload failed/pending)" : "File cleared after successful upload"
+        })
 
         return {
           skuId,
@@ -184,6 +210,22 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
           image: sku.imageUrl || "/placeholder.svg?height=80&width=80", // Use the stored image URL
           imageFile: sku.imageFile, // Add the File object
         }
+      })
+
+      // 🔍 DEBUG LOGGING - Summary of batch creation data
+      console.log("🔍 NewSKUSheet DEBUG - Final batch creation summary:", {
+        totalSkus: skusToCreate.length,
+        sequenceNumber: sequenceResult.formattedNumber,
+        skusWithImages: skusToCreate.filter(sku => sku.imageFile).length,
+        skusWithUrls: skusToCreate.filter(sku => sku.image && sku.image !== "/placeholder.svg?height=80&width=80").length,
+        allSkuIds: skusToCreate.map(sku => sku.skuId)
+      })
+
+      // 🔍 DEBUG LOGGING - About to call batch creation
+      console.log("🔍 NewSKUSheet DEBUG - Calling createSkuBatch with:", {
+        totalSkus: skusToCreate.length,
+        skusWithFiles: skusToCreate.filter(sku => sku.imageFile).length,
+        skusWithUrls: skusToCreate.filter(sku => sku.image && sku.image !== "/placeholder.svg?height=80&width=80").length
       })
 
       // Call the batch insertion server action

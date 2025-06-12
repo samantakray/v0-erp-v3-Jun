@@ -177,14 +177,13 @@ export async function createSkuBatch(skus: SkuBatchItem[]) {
   })
 
   // Add logging statement to verify backend received data
-  logger.debug(
-    "Received skus data:",
-    skus.map((sku) => ({
+  logger.debug("Received skus data:", {
+    data: skus.map((sku) => ({
       skuId: sku.skuId,
       name: sku.name,
       hasImageFile: !!sku.imageFile,
     })),
-  )
+  })
 
   // Basic validation
   if (!Array.isArray(skus) || skus.length === 0) {
@@ -205,9 +204,39 @@ export async function createSkuBatch(skus: SkuBatchItem[]) {
       skus.map(async (sku) => {
         let imageUrl = sku.image || "/placeholder.svg?height=80&width=80"
 
-        if (sku.imageFile) {
+        // 🔍 DEBUG LOGGING - Upload context logging
+        console.log("🔍 createSkuBatch DEBUG - Processing SKU image:", {
+          skuId: sku.skuId,
+          hasImageFile: !!sku.imageFile,
+          hasExistingUrl: !!sku.image,
+          existingUrl: sku.image,
+          fileName: sku.imageFile?.name,
+          fileSize: sku.imageFile?.size,
+          shouldSkipUpload: !!sku.image && sku.image !== "/placeholder.svg?height=80&width=80",
+          environment: typeof window === 'undefined' ? 'server' : 'client'
+        })
+
+        // 🔧 FIX: Skip upload if we already have a valid URL
+        const hasValidUrl = sku.image && sku.image !== "/placeholder.svg?height=80&width=80"
+        
+        if (sku.imageFile && !hasValidUrl) {
+          console.log("🔍 createSkuBatch DEBUG - About to upload image (no existing URL):", {
+            skuId: sku.skuId,
+            fileName: sku.imageFile.name,
+            hasExistingUrl: !!sku.image,
+            environment: typeof window === 'undefined' ? 'server' : 'client'
+          })
+          
           const imagePath = generateSkuImagePath(sku.skuId, sku.imageFile.name)
-          const uploadResult = await uploadImageToSupabase(sku.imageFile, "product-images", imagePath)
+          // Skip dimension validation in server environment (already validated on client)
+          const uploadResult = await uploadImageToSupabase(sku.imageFile, "product-images", imagePath, true)
+
+          console.log("🔍 createSkuBatch DEBUG - Upload result:", {
+            skuId: sku.skuId,
+            success: uploadResult.success,
+            url: uploadResult.url,
+            error: uploadResult.error
+          })
 
           if (!uploadResult.success) {
             logger.error(`Failed to upload image for SKU in batch`, {
@@ -223,7 +252,27 @@ export async function createSkuBatch(skus: SkuBatchItem[]) {
           logger.debug(`Image uploaded successfully for SKU in batch`, {
             data: { skuId: sku.skuId, imageUrl },
           })
+        } else if (sku.imageFile && hasValidUrl) {
+          console.log("🔍 createSkuBatch DEBUG - Skipping upload (using existing URL):", {
+            skuId: sku.skuId,
+            existingUrl: sku.image,
+            fileName: sku.imageFile.name,
+            reason: "Already uploaded"
+          })
+                     // Use existing URL, no upload needed
+           imageUrl = sku.image!
+        } else {
+          console.log("🔍 createSkuBatch DEBUG - Skipping image upload (no file):", {
+            skuId: sku.skuId,
+            usingExistingUrl: imageUrl
+          })
         }
+
+        console.log("🔍 createSkuBatch DEBUG - Final image URL for SKU:", {
+          skuId: sku.skuId,
+          finalImageUrl: imageUrl,
+          wasUploaded: !!sku.imageFile
+        })
 
         return {
           ...sku,

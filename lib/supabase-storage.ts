@@ -11,8 +11,20 @@ const MAX_DIMENSIONS = { width: 4000, height: 4000 }
  * @returns Promise<{isValid: boolean, error?: string}>
  */
 export async function validateImageFile(file: File): Promise<{ isValid: boolean; error?: string }> {
+  // 🔍 DEBUG LOGGING - Validation flow tracking
+  console.log("🔍 validateImageFile DEBUG - Starting validation:", {
+    fileName: file.name,
+    fileSize: file.size,
+    fileType: file.type,
+    environment: typeof window === 'undefined' ? 'server' : 'client'
+  })
+
   // Check file type
   if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+    console.log("🔍 validateImageFile DEBUG - File type validation failed:", {
+      fileType: file.type,
+      allowedTypes: ALLOWED_FILE_TYPES
+    })
     return {
       isValid: false,
       error: `Invalid file type. Allowed types: ${ALLOWED_FILE_TYPES.join(", ")}`,
@@ -21,6 +33,12 @@ export async function validateImageFile(file: File): Promise<{ isValid: boolean;
 
   // Check file size
   if (file.size > MAX_FILE_SIZE) {
+    console.log("🔍 validateImageFile DEBUG - File size validation failed:", {
+      fileSize: file.size,
+      maxSize: MAX_FILE_SIZE,
+      fileSizeMB: (file.size / (1024 * 1024)).toFixed(2),
+      maxSizeMB: (MAX_FILE_SIZE / (1024 * 1024)).toFixed(2)
+    })
     return {
       isValid: false,
       error: `File size too large. Maximum size: ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
@@ -29,20 +47,33 @@ export async function validateImageFile(file: File): Promise<{ isValid: boolean;
 
   // Check image dimensions
   try {
+    console.log("🔍 validateImageFile DEBUG - Starting dimension validation...")
     const dimensions = await getImageDimensions(file)
+    console.log("🔍 validateImageFile DEBUG - Dimensions obtained:", dimensions)
+    
     if (dimensions.width > MAX_DIMENSIONS.width || dimensions.height > MAX_DIMENSIONS.height) {
+      console.log("🔍 validateImageFile DEBUG - Dimension validation failed:", {
+        actualDimensions: dimensions,
+        maxDimensions: MAX_DIMENSIONS
+      })
       return {
         isValid: false,
         error: `Image dimensions too large. Maximum: ${MAX_DIMENSIONS.width}x${MAX_DIMENSIONS.height}px`,
       }
     }
   } catch (error) {
+    console.error("🔍 validateImageFile ERROR - Dimension reading failed:", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      fileName: file.name
+    })
     return {
       isValid: false,
       error: "Unable to read image dimensions",
     }
   }
 
+  console.log("🔍 validateImageFile DEBUG - Validation completed successfully")
   return { isValid: true }
 }
 
@@ -53,15 +84,45 @@ export async function validateImageFile(file: File): Promise<{ isValid: boolean;
  */
 function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
+    // 🔍 DEBUG LOGGING - Environment detection
+    console.log("🔍 getImageDimensions DEBUG - Environment check:", {
+      hasImage: typeof Image !== 'undefined',
+      hasCreateObjectURL: typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function',
+      isServer: typeof window === 'undefined',
+      fileInfo: { name: file.name, size: file.size, type: file.type }
+    })
+    
+    if (typeof Image === 'undefined') {
+      console.error("🔍 getImageDimensions ERROR - Image constructor not available (server environment)")
+      reject(new Error("Image constructor not available in server environment"))
+      return
+    }
+    
+    if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
+      console.error("🔍 getImageDimensions ERROR - URL.createObjectURL not available (server environment)")
+      reject(new Error("URL.createObjectURL not available in server environment"))
+      return
+    }
+
     const img = new Image()
     const url = URL.createObjectURL(file)
 
     img.onload = () => {
+      console.log("🔍 getImageDimensions DEBUG - Image loaded successfully:", {
+        width: img.width,
+        height: img.height,
+        fileName: file.name
+      })
       URL.revokeObjectURL(url)
       resolve({ width: img.width, height: img.height })
     }
 
     img.onerror = () => {
+      console.error("🔍 getImageDimensions ERROR - Image failed to load:", {
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size
+      })
       URL.revokeObjectURL(url)
       reject(new Error("Failed to load image"))
     }
@@ -81,6 +142,7 @@ export async function uploadImageToSupabase(
   file: File,
   bucket: string,
   path: string,
+  skipValidation = false
 ): Promise<{ success: boolean; url?: string; error?: string }> {
   try {
     // 🔍 DEBUG LOGGING - Starting upload
@@ -89,14 +151,37 @@ export async function uploadImageToSupabase(
       fileSize: file.size,
       bucket,
       path,
+      skipValidation
     })
 
-    // Validate file first
-    const validation = await validateImageFile(file)
-    if (!validation.isValid) {
-      return {
-        success: false,
-        error: validation.error,
+    // Validate file first (unless skipped for server environment)
+    if (!skipValidation) {
+      const validation = await validateImageFile(file)
+      if (!validation.isValid) {
+        return {
+          success: false,
+          error: validation.error,
+        }
+      }
+    } else {
+      console.log("🔍 uploadImageToSupabase DEBUG - Skipping validation (server environment)")
+      
+      // Basic file type check without dimension validation
+      const ALLOWED_FILE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
+      if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+        return {
+          success: false,
+          error: `Invalid file type. Allowed types: ${ALLOWED_FILE_TYPES.join(", ")}`,
+        }
+      }
+      
+      // Basic file size check
+      const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+      if (file.size > MAX_FILE_SIZE) {
+        return {
+          success: false,
+          error: `File size too large. Maximum size: ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
+        }
       }
     }
 

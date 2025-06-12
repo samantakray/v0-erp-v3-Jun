@@ -133,7 +133,8 @@ export default function SKUsPage() {
 
     // Clear after animation duration
     setTimeout(() => {
-      setNewlyAddedSkuIds([])
+      setNewlyAddedSkuIds([]);
+      handleRefresh(); // Call handleRefresh after clearing the newly added SKU IDs
     }, 5000)
 
     setSkus((prevSkus) => {
