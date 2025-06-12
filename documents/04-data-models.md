@@ -200,15 +200,15 @@ export interface DiamondLot {
 
 The database uses the following foreign key relationships:
 
-1. **Orders → Customers**: `orders.customer_id` → `customers.id`
-2. **Order Items → Orders**: `order_items.order_id` → `orders.id`
-3. **Order Items → SKUs**: `order_items.sku_id` → `skus.id`
-4. **Jobs → Orders**: `jobs.order_id` → `orders.id`
-5. **Jobs → Order Items**: `jobs.order_item_id` → `order_items.id`
-6. **Jobs → SKUs**: `jobs.sku_id` → `skus.id`
-7. **Jobs → Manufacturers**: `jobs.manufacturer_id` → `manufacturers.id`
-8. **Job History → Jobs**: `job_history.job_id` → `jobs.id`
-9. **Job History → Users**: `job_history.user_id` → `users.id`
+1.  **Orders → Customers**: `orders.customer_id` → `customers.id`
+2.  **Order Items → Orders**: `order_items.order_id` → `orders.id`
+3.  **Order Items → SKUs**: `order_items.sku_id` → `skus.id`
+4.  **Jobs → Orders**: `jobs.order_id` → `orders.id`
+5.  **Jobs → Order Items**: `jobs.order_item_id` → `order_items.id`
+6.  **Jobs → SKUs**: `jobs.sku_id` → `skus.id`
+7.  **Jobs → Manufacturers**: `jobs.manufacturer_id` → `manufacturers.id`
+8.  **Job History → Jobs**: `job_history.job_id` → `jobs.id`
+9.  **Job History → Users**: `job_history.user_id` → `users.id`
 
 ## ID Generation Rules
 
@@ -244,11 +244,8 @@ Job IDs follow the pattern: `J-[4-digit number]`
 
 ## Data Validation Rules
 
-1. **Required Fields**: All models have required fields that must be provided
-2. **UUID References**: All foreign key relationships use UUIDs
-3. **Automatic Timestamps**: `created_at` and `updated_at` fields are automatically managed
-4. **Status Values**: Status fields should use predefined values from the application constants
-5. **JSONB Data**: Complex data structures are stored as JSONB for flexibility and performance
-\`\`\`
-
-Now let me update the system architecture documentation:
+1.  **Required Fields**: All models have required fields that must be provided
+2.  **UUID References**: All foreign key relationships use UUIDs
+3.  **Automatic Timestamps**: `created_at` and `updated_at` fields are automatically managed
+4.  **Status Values**: Status fields should use predefined values from the application constants
+5.  **JSONB Data**: Complex data structures are stored as JSONB for flexibility and performance
