@@ -18,6 +18,7 @@ import { updateJobPhase } from "@/app/actions/job-actions"
 import { JOB_STATUS, JOB_PHASE } from "@/constants/job-workflow"
 import { logger } from "@/lib/logger"
 import { fetchStoneLots, fetchDiamondLots } from "@/lib/api-service" // Added fetchDiamondLots
+import { generateAllocationClientID } from "@/lib/utils"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import StoneAllocationRow from "@/components/stone-allocation-row"
 import DiamondAllocationRow from "@/components/diamond-allocation-row" // Import the new component
@@ -49,7 +50,7 @@ export function JobDetailSheet({
   const [stoneLots, setStoneLots] = useState<StoneLotData[]>([])
   const [stoneLotsLoading, setStoneLotsLoading] = useState(true)
   const [stoneAllocations, setStoneAllocations] = useState<StoneAllocation[]>([
-    { clientId: crypto.randomUUID(), lot_number: "", stone_type: "", size: "", quantity: 0, weight: 0 },
+    { clientId: generateAllocationClientID(), lot_number: "", stone_type: "", size: "", quantity: 0, weight: 0 },
   ])
   const [stoneAllocationErrors, setStoneAllocationErrors] = useState<{ [key: string]: { [field: string]: string } }>({})
   const [stonePhaseError, setStonePhaseError] = useState<string | null>(null)
@@ -59,7 +60,7 @@ export function JobDetailSheet({
   const [diamondLots, setDiamondLots] = useState<DiamondLotData[]>([])
   const [diamondLotsLoading, setDiamondLotsLoading] = useState(true)
   const [diamondAllocations, setDiamondAllocations] = useState<DiamondAllocation[]>([
-    { clientId: crypto.randomUUID(), lot_number: "", size: "", shape: "", quality: "", quantity: 0, weight: 0 },
+    { clientId: generateAllocationClientID(), lot_number: "", size: "", shape: "", quality: "", quantity: 0, weight: 0 },
   ])
   const [diamondAllocationErrors, setDiamondAllocationErrors] = useState<{
     [key: string]: { [field: string]: string }
@@ -93,19 +94,19 @@ export function JobDetailSheet({
 
       // Pre-populate stone allocations
       if (job.stoneData?.allocations && job.stoneData.allocations.length > 0) {
-        setStoneAllocations(job.stoneData.allocations.map((alloc) => ({ ...alloc, clientId: crypto.randomUUID() })))
+        setStoneAllocations(job.stoneData.allocations.map((alloc) => ({ ...alloc, clientId: generateAllocationClientID() })))
       } else {
         setStoneAllocations([
-          { clientId: crypto.randomUUID(), lot_number: "", stone_type: "", size: "", quantity: 0, weight: 0 },
+          { clientId: generateAllocationClientID(), lot_number: "", stone_type: "", size: "", quantity: 0, weight: 0 },
         ])
       }
 
       // Pre-populate diamond allocations
       if (job.diamondData?.allocations && job.diamondData.allocations.length > 0) {
-        setDiamondAllocations(job.diamondData.allocations.map((alloc) => ({ ...alloc, clientId: crypto.randomUUID() })))
+        setDiamondAllocations(job.diamondData.allocations.map((alloc) => ({ ...alloc, clientId: generateAllocationClientID() })))
       } else {
         setDiamondAllocations([
-          { clientId: crypto.randomUUID(), lot_number: "", size: "", shape: "", quality: "", quantity: 0, weight: 0 },
+          { clientId: generateAllocationClientID(), lot_number: "", size: "", shape: "", quality: "", quantity: 0, weight: 0 },
         ])
       }
 
@@ -253,7 +254,7 @@ export function JobDetailSheet({
     logger.debug("JobDetailSheet: Adding new stone allocation row")
     setStoneAllocations([
       ...stoneAllocations,
-      { clientId: crypto.randomUUID(), lot_number: "", stone_type: "", size: "", quantity: 0, weight: 0 },
+      { clientId: generateAllocationClientID(), lot_number: "", stone_type: "", size: "", quantity: 0, weight: 0 },
     ])
   }
 
@@ -374,7 +375,7 @@ export function JobDetailSheet({
     logger.debug("JobDetailSheet: Adding new diamond allocation row")
     setDiamondAllocations([
       ...diamondAllocations,
-      { clientId: crypto.randomUUID(), lot_number: "", size: "", shape: "", quality: "", quantity: 0, weight: 0 },
+      { clientId: generateAllocationClientID(), lot_number: "", size: "", shape: "", quality: "", quantity: 0, weight: 0 },
     ])
   }
 
