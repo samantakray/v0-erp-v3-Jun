@@ -249,3 +249,125 @@ Job IDs follow the pattern: `J-[4-digit number]`
 3.  **Automatic Timestamps**: `created_at` and `updated_at` fields are automatically managed
 4.  **Status Values**: Status fields should use predefined values from the application constants
 5.  **JSONB Data**: Complex data structures are stored as JSONB for flexibility and performance
+
+## System Architecture Integration
+
+### Database Layer Architecture
+
+The data models integrate with the system architecture through multiple layers:
+
+#### 1. Database Functions and Triggers
+
+**Automatic ID Generation:**
+- `generate_sku_id()`: Triggered on SKU insertion, uses sequence `sku_sequential_number_seq`
+- `generate_order_id()`: Triggered on Order insertion, finds max ID and increments
+- `generate_job_id()`: Triggered on Job insertion, uses simple counter logic
+
+**Trigger Implementation:**
+\`\`\`sql
+-- SKU ID Generation Trigger
+CREATE TRIGGER set_sku_id_trigger 
+  BEFORE INSERT ON skus 
+  FOR EACH ROW 
+  EXECUTE FUNCTION generate_sku_id();
+
+-- Order ID Generation Trigger  
+CREATE TRIGGER set_order_id 
+  BEFORE INSERT ON orders 
+  FOR EACH ROW 
+  EXECUTE FUNCTION generate_order_id();
+
+-- Job ID Generation Trigger
+CREATE TRIGGER set_job_id 
+  BEFORE INSERT ON jobs 
+  FOR EACH ROW 
+  EXECUTE FUNCTION generate_job_id();
+\`\`\`
+
+#### 2. Row-Level Security (RLS) Integration
+
+All data models are protected by comprehensive RLS policies:
+
+**Policy Structure:**
+- **Anonymous Read Access**: SELECT operations allowed without authentication
+- **Authenticated Full Access**: All CRUD operations for authenticated users
+- **Service Role Operations**: Full access for server-side operations
+
+**Security Benefits:**
+- Data protection at the database level
+- Automatic enforcement of access control
+- Flexible permission management
+
+#### 3. Application Layer Integration
+
+**API Service Layer:**
+- Abstracts database operations through `lib/api-service.ts`
+- Provides consistent interface for both mock and production data
+- Handles data transformation and validation
+
+**Server Actions:**
+- Direct database operations for form submissions
+- Leverages service role for elevated permissions
+- Maintains audit trail through job history
+
+**Client Components:**
+- Real-time data updates through Supabase subscriptions
+- Optimistic updates for better user experience
+- Error handling and retry logic
+
+#### 4. Data Flow Architecture
+
+\`\`\`mermaid
+graph TD
+    A[Client Components] --> B[API Service Layer]
+    B --> C[Supabase Client]
+    C --> D[RLS Policies]
+    D --> E[Database Tables]
+    E --> F[Triggers & Functions]
+    F --> G[ID Generation]
+    
+    H[Server Actions] --> I[Service Role Client]
+    I --> D
+    
+    J[Job History] --> K[Audit Trail]
+    L[Real-time Subscriptions] --> A
+\`\`\`
+
+#### 5. Inventory Management Integration
+
+**Stone and Diamond Lots:**
+- Integrated with job workflow for material allocation
+- Status tracking throughout production process
+- Location and quality management for efficient operations
+
+**Workflow Integration:**
+- Stone selection phase uses `stone_lots` data
+- Diamond selection phase uses `diamond_lots` data
+- Allocation tracking through job data fields
+
+#### 6. Performance Considerations
+
+**Database Optimization:**
+- UUID primary keys for distributed systems
+- JSONB fields for flexible data storage
+- Indexed foreign key relationships
+- Efficient sequence-based ID generation
+
+**Caching Strategy:**
+- Client-side caching through React Query
+- Supabase built-in caching for frequently accessed data
+- Optimistic updates to reduce perceived latency
+
+#### 7. Scalability Architecture
+
+**Horizontal Scaling:**
+- UUID-based primary keys support distributed architecture
+- Stateless API design enables load balancing
+- Supabase handles database scaling automatically
+
+**Data Partitioning:**
+- Job history can be partitioned by date for performance
+- Large inventory tables can be partitioned by status
+- Archive strategies for completed orders and jobs
+
+This architecture ensures data consistency, security, and performance while maintaining flexibility for future enhancements.
