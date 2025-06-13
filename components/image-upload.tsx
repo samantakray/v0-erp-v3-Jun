@@ -51,17 +51,6 @@ export function ImageUpload({
   compact = false,
   onError,
 }: ImageUploadProps) {
-  console.log("🔍 ImageUpload DEBUG - Component rendered with props:", {
-    value,
-    skuId,
-    disabled,
-    compact,
-    tempId,
-    hasOnChange: !!onChange,
-    hasOnFileChange: !!onFileChange,
-    hasOnError: !!onError,
-  })
-
   const [uploadState, setUploadState] = useState<UploadState>({
     isUploading: false,
     progress: 0,
@@ -71,17 +60,7 @@ export function ImageUpload({
   const [isDragOver, setIsDragOver] = useState(false)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
 
-  useEffect(() => {
-    console.log("🔍 ImageUpload DEBUG - Component mounted/updated:", {
-      value,
-      uploadState,
-      isDragOver,
-      disabled,
-    })
-  }, [value, uploadState, isDragOver, disabled])
-
   const resetUploadState = useCallback(() => {
-    console.log("🔍 ImageUpload DEBUG - Resetting upload state")
     setUploadState({
       isUploading: false,
       progress: 0,
@@ -92,15 +71,7 @@ export function ImageUpload({
 
   const handleFileSelect = useCallback(
     async (file: File) => {
-      console.log("🔍 ImageUpload DEBUG - handleFileSelect called:", {
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        disabled,
-      })
-
       if (disabled) {
-        console.log("🔍 ImageUpload DEBUG - Upload disabled, returning early")
         return
       }
 
@@ -108,10 +79,9 @@ export function ImageUpload({
       setUploadState((prev) => ({ ...prev, isUploading: true, progress: 10 }))
 
       try {
-        // Validate file
-        console.log("🔍 ImageUpload DEBUG - Validating file...")
         const validation = await validateImageFile(file)
         if (!validation.isValid) {
+          // Keep: This log is directly related to a validation error
           console.log("🔍 ImageUpload DEBUG - File validation failed:", validation.error)
           setUploadState((prev) => ({
             ...prev,
@@ -123,17 +93,11 @@ export function ImageUpload({
 
         setUploadState((prev) => ({ ...prev, progress: 30 }))
 
-        // Generate upload path
         const uploadPath = generateSkuImagePath(skuId, file.name)
-        console.log("🔍 ImageUpload DEBUG - Generated upload path:", uploadPath)
 
         setUploadState((prev) => ({ ...prev, progress: 50 }))
 
-        // Upload to Supabase
-        console.log("🔍 ImageUpload DEBUG - Starting upload to Supabase...")
         const uploadResult = await uploadImageToSupabase(file, "product-images", uploadPath)
-
-        console.log("🔍 ImageUpload DEBUG - Upload result:", uploadResult)
 
         if (!uploadResult.success) {
           throw new Error(uploadResult.error || "Upload failed")
@@ -141,11 +105,6 @@ export function ImageUpload({
 
         setUploadState((prev) => ({ ...prev, progress: 90 }))
 
-        // Success
-        console.log("🔍 ImageUpload DEBUG - Upload successful, calling onChange:", {
-          url: uploadResult.url,
-          file: file.name,
-        })
         onChange(uploadResult.url || null, file)
         onFileChange?.(file)
 
@@ -156,6 +115,7 @@ export function ImageUpload({
           setUploadState((prev) => ({ ...prev, progress: 0 }))
         }, 1000)
       } catch (error) {
+        // Keep: This is an essential error log
         console.error("🔍 ImageUpload DEBUG - Upload error:", error)
         setUploadState((prev) => ({
           ...prev,
@@ -168,7 +128,6 @@ export function ImageUpload({
   )
 
   const handleRetry = useCallback(async () => {
-    console.log("🔍 ImageUpload DEBUG - Retry attempt:", uploadState.retryCount)
     if (uploadState.retryCount >= MAX_RETRY_ATTEMPTS) {
       setUploadState((prev) => ({
         ...prev,
@@ -194,13 +153,9 @@ export function ImageUpload({
 
   const handleInputChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      console.log("🔍 ImageUpload DEBUG - Input change event triggered")
       const file = event.target.files?.[0]
       if (file) {
-        console.log("🔍 ImageUpload DEBUG - File selected from input:", file.name)
         handleFileSelect(file)
-      } else {
-        console.log("🔍 ImageUpload DEBUG - No file selected from input")
       }
     },
     [handleFileSelect],
@@ -208,7 +163,6 @@ export function ImageUpload({
 
   const handleDragOver = useCallback(
     (event: React.DragEvent) => {
-      console.log("🔍 ImageUpload DEBUG - Drag over event:", { disabled })
       event.preventDefault()
       if (!disabled) {
         setIsDragOver(true)
@@ -218,33 +172,26 @@ export function ImageUpload({
   )
 
   const handleDragLeave = useCallback((event: React.DragEvent) => {
-    console.log("🔍 ImageUpload DEBUG - Drag leave event")
     event.preventDefault()
     setIsDragOver(false)
   }, [])
 
   const handleDrop = useCallback(
     (event: React.DragEvent) => {
-      console.log("🔍 ImageUpload DEBUG - Drop event:", { disabled })
       event.preventDefault()
       setIsDragOver(false)
 
       if (disabled) {
-        console.log("🔍 ImageUpload DEBUG - Drop ignored - component disabled")
         return
       }
 
       const files = Array.from(event.dataTransfer.files)
-      console.log(
-        "🔍 ImageUpload DEBUG - Files dropped:",
-        files.map((f) => f.name),
-      )
       const imageFile = files.find((file) => acceptedTypes.includes(file.type))
 
       if (imageFile) {
-        console.log("🔍 ImageUpload DEBUG - Valid image file found:", imageFile.name)
         handleFileSelect(imageFile)
       } else {
+        // Keep: This log is directly related to setting an error state
         console.log("🔍 ImageUpload DEBUG - No valid image file found in drop")
         setUploadState((prev) => ({
           ...prev,
@@ -256,7 +203,6 @@ export function ImageUpload({
   )
 
   const handleDelete = useCallback(() => {
-    console.log("🔍 ImageUpload DEBUG - Delete button clicked:", { disabled, value })
     if (disabled) return
     onChange(null, null)
     onFileChange?.(null)
@@ -264,7 +210,6 @@ export function ImageUpload({
   }, [disabled, onChange, onFileChange, resetUploadState])
 
   const openFileDialog = useCallback(() => {
-    console.log("🔍 ImageUpload DEBUG - Opening file dialog:", { disabled })
     if (!disabled) {
       const fileInput = document.createElement("input")
       fileInput.type = "file"
@@ -273,7 +218,6 @@ export function ImageUpload({
         const target = e.target as HTMLInputElement
         const file = target.files?.[0]
         if (file) {
-          console.log("🔍 ImageUpload DEBUG - File selected from dialog:", file.name)
           handleFileSelect(file)
         }
       }
@@ -283,11 +227,6 @@ export function ImageUpload({
 
   const handleUploadAreaClick = useCallback(
     (event: React.MouseEvent) => {
-      console.log("🔍 ImageUpload DEBUG - Upload area clicked:", {
-        disabled,
-        isUploading: uploadState.isUploading,
-        target: event.target,
-      })
       event.preventDefault()
       event.stopPropagation()
 
@@ -297,14 +236,6 @@ export function ImageUpload({
     },
     [disabled, uploadState.isUploading, openFileDialog],
   )
-
-  console.log("🔍 ImageUpload DEBUG - Rendering component with state:", {
-    value,
-    uploadState,
-    isDragOver,
-    disabled,
-    compact,
-  })
 
   return (
     <div className={cn("space-y-4", className)}>

@@ -34,16 +34,11 @@ function getDefaultProductionDate() {
 
 // Helper function to calculate default delivery date (default production date + 15 days)
 function getDefaultDeliveryDate() {
-  // Console logging to see the default production date being used for delivery date calculation
-  console.log("🔍 getDefaultDeliveryDate - Using default production date for calculation.");
-
+  
   const defaultProductionDate = new Date(getDefaultProductionDate()) // Get the default production date
   const deliveryDate = new Date(defaultProductionDate)
   deliveryDate.setDate(defaultProductionDate.getDate() + 15) // Add 15 days to the default production date
   const resultDate = deliveryDate.toISOString().split("T")[0];
-
-  // Console logging to see the calculated default delivery date
-  console.log("🔍 getDefaultDeliveryDate - Calculated default delivery date:", resultDate);
 
   return resultDate
 }

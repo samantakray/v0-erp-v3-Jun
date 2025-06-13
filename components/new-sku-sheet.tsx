@@ -283,7 +283,7 @@ if (hasInvalidCategory) {
     acc[firstLetter].push(stoneType)
     return acc
   }, {})
-
+  
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       {/* Increased width for the sheet content */}
