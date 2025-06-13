@@ -32,6 +32,7 @@ function getDefaultProductionDate() {
   return futureDate.toISOString().split("T")[0] // Format as YYYY-MM-DD
 }
 
+
 export function NewOrderSheet({
   open,
   onOpenChange,
@@ -92,6 +93,27 @@ export function NewOrderSheet({
   const [bulkAssignError, setBulkAssignError] = useState(null)
   const [bulkAssignSuccess, setBulkAssignSuccess] = useState(null)
   const [isBulkProcessing, setIsBulkProcessing] = useState(false)
+
+  const loadSKUs = async () => {
+    try {
+      setIsLoadingSKUs(true);
+      setSkuError(null);
+      logger.info("Fetching SKUs for order form");
+      const skus = await fetchSkus();
+      if (skus && skus.length > 0) {
+        setAvailableSKUs(skus);
+        logger.info(`Loaded ${skus.length} SKUs for order form`);
+      } else {
+        logger.warn("No SKUs found in database for order form");
+        setSkuError("No SKUs found. Please create SKUs first.");
+      }
+    } catch (error) {
+      logger.error("Error loading SKUs for order form", { error });
+      setSkuError("Failed to load SKUs. Please try again.");
+    } finally {
+      setIsLoadingSKUs(false);
+    }
+  };
 
   // Fetch customers from Supabase when component mounts
   useEffect(() => {
@@ -211,6 +233,10 @@ export function NewOrderSheet({
       setCustomerName("")
     }
   }, [orderType, editOrder])
+
+// Add this new useEffect for tab change handling
+
+
 
   // Load edit order data
   useEffect(() => {
@@ -608,14 +634,18 @@ export function NewOrderSheet({
   }
 
   const handleNewSKUCreated = (newSKU) => {
-    // Add the new SKU to available SKUs
-    setAvailableSKUs([...availableSKUs, newSKU])
+    // Console logging for debugging multiple SKU creation
+    console.log("🔍 handleNewSKUCreated called with SKU:", newSKU.sku_id || newSKU.id)
 
-    // Optionally, add the new SKU directly to the selected SKUs
-    setSelectedSKUs([
-      ...selectedSKUs,
+    // Add the new SKU to available SKUs using functional update
+    setAvailableSKUs((prevAvailableSKUs) => [...prevAvailableSKUs, newSKU])
+
+    // Add the new SKU to selected SKUs using functional update
+    setSelectedSKUs((prevSelectedSKUs) => [
+      ...prevSelectedSKUs,
       {
         ...newSKU,
+        id: newSKU.sku_id || newSKU.id, // Use sku_id if available, fallback to id
         quantity: 1,
         size: newSKU.size || "",
         remarks: "",
@@ -624,8 +654,8 @@ export function NewOrderSheet({
       },
     ])
 
-    // Switch to the Select SKU tab after creating a new SKU
-    setActiveTab("select-sku")
+    // DISABLE this -> Switch to the Select SKU tab after creating a new SKU
+    //setActiveTab("select-sku")
   }
 
   const openImageDialog = (image) => {
@@ -657,6 +687,26 @@ export function NewOrderSheet({
       logger.info(`New order sheet closed without submitting. Predicted order ID ${predictedOrderId} was not used.`)
     }
   }, [open, predictedOrderId, isSubmitting])
+
+
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+  
+    if (activeTab === "select-sku" && open) {
+      // Set a timeout to delay the refresh
+      timeoutId = setTimeout(() => {
+        loadSKUs();
+      }, 500); // 500ms delay
+    }
+  
+    // Cleanup function to clear the timeout
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [activeTab, open]);
+
 
   return (
     <>
