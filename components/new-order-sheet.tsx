@@ -24,12 +24,28 @@ import { getPredictedNextOrderNumber } from "@/app/actions/order-actions"
 // Default customer ID for "Exquisite Fine Jewellery" - replace with the actual ID from Phase 1
 const DEFAULT_CUSTOMER_ID = "8505d3dc-97c0-4636-a11d-1c8305ed07ac"
 
-// Helper function to calculate default production date (today + 45 days)
+// Helper function to calculate default production date (today + 15 days)
 function getDefaultProductionDate() {
   const today = new Date()
   const futureDate = new Date(today)
-  futureDate.setDate(today.getDate() + 45)
+  futureDate.setDate(today.getDate() + 15)
   return futureDate.toISOString().split("T")[0] // Format as YYYY-MM-DD
+}
+
+// Helper function to calculate default delivery date (default production date + 15 days)
+function getDefaultDeliveryDate() {
+  // Console logging to see the default production date being used for delivery date calculation
+  console.log("🔍 getDefaultDeliveryDate - Using default production date for calculation.");
+
+  const defaultProductionDate = new Date(getDefaultProductionDate()) // Get the default production date
+  const deliveryDate = new Date(defaultProductionDate)
+  deliveryDate.setDate(defaultProductionDate.getDate() + 15) // Add 15 days to the default production date
+  const resultDate = deliveryDate.toISOString().split("T")[0];
+
+  // Console logging to see the calculated default delivery date
+  console.log("🔍 getDefaultDeliveryDate - Calculated default delivery date:", resultDate);
+
+  return resultDate
 }
 
 
@@ -62,7 +78,7 @@ export function NewOrderSheet({
   const [customerId, setCustomerId] = useState(editOrder?.customerId || DEFAULT_CUSTOMER_ID) // Add customerId state
   const [selectedSKUs, setSelectedSKUs] = useState(editOrder?.skus || [])
   const [productionDueDate, setProductionDueDate] = useState(editOrder?.productionDate || getDefaultProductionDate())
-  const [deliveryDate, setDeliveryDate] = useState(editOrder?.deliveryDate || "")
+  const [deliveryDate, setDeliveryDate] = useState(editOrder?.deliveryDate || getDefaultDeliveryDate())
   const [searchQuery, setSearchQuery] = useState("")
   const [dateWarning, setDateWarning] = useState(false)
   const [newSKUSheetOpen, setNewSKUSheetOpen] = useState(false)
@@ -621,7 +637,7 @@ export function NewOrderSheet({
       if (!isDraft) {
         setSelectedSKUs([])
         setProductionDueDate(getDefaultProductionDate())
-        setDeliveryDate("")
+        setDeliveryDate(getDefaultDeliveryDate())
         setOrderType("Stock")
         setCustomerId(DEFAULT_CUSTOMER_ID)
         setCustomerName("Exquisite Fine Jewellery")
@@ -637,17 +653,34 @@ export function NewOrderSheet({
     // Console logging for debugging multiple SKU creation
     console.log("🔍 handleNewSKUCreated called with SKU:", newSKU.sku_id || newSKU.id)
 
+    // Map image_url to image for consistency
+    const normalizedSKU = {
+      ...newSKU,
+      id: newSKU.sku_id || newSKU.id,
+      image: newSKU.image_url || newSKU.image, // Add this mapping
+    }
+
+    // Debug logging to verify image URL mapping
+    console.log("🔍 Normalized SKU data:", {
+      originalImage: newSKU.image,
+      originalImageUrl: newSKU.image_url,
+      finalImage: normalizedSKU.image,
+      skuId: normalizedSKU.id
+    })
+
+    // Additional verification logging
+    console.log("🔍 SKU being added to selectedSKUs with image:", normalizedSKU.image)
+
     // Add the new SKU to available SKUs using functional update
-    setAvailableSKUs((prevAvailableSKUs) => [...prevAvailableSKUs, newSKU])
+    setAvailableSKUs((prevAvailableSKUs) => [...prevAvailableSKUs, normalizedSKU])
 
     // Add the new SKU to selected SKUs using functional update
     setSelectedSKUs((prevSelectedSKUs) => [
       ...prevSelectedSKUs,
       {
-        ...newSKU,
-        id: newSKU.sku_id || newSKU.id, // Use sku_id if available, fallback to id
+        ...normalizedSKU,
         quantity: 1,
-        size: newSKU.size || "",
+        size: normalizedSKU.size || "",
         remarks: "",
         individualProductionDate: productionDueDate || "",
         individualDeliveryDate: deliveryDate || "",
