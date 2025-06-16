@@ -40,10 +40,10 @@ The New SKU Creation feature allows users to create single or multiple SKUs with
 - **Stone Type Selection**: User selects from 70+ stone types (grouped alphabetically)
 - **Image Upload**: Optional image upload with validation and preview
 
-#### 3. **Multiple SKU Variants**
-- User can add multiple SKU variants using "Add SKU Variant" button
-- Each variant can have different configurations
-- All variants share the same sequential number but get different category prefixes
+#### 3. **Multiple SKUs to a Set**
+- User can add multiple SKU variants using "Add SKU to Set" button
+- Each new SKU added to the set can have different configurations
+- All the skus in a set share the same sequential number but get different category prefixes
 - Example: RG-0001 (Ring), NK-0001 (Necklace) for the same batch
 
 #### 4. **SKU ID Preview**
@@ -75,7 +75,7 @@ components/new-sku-sheet.tsx (Main Component)
 #### State Management
 
 \`\`\`typescript
-// Main SKU variants state
+// Main SKU variants in a set state
 const [multipleSkus, setMultipleSkus] = useState([{
   category: "Necklace",
   collection: COLLECTION_NAME.NONE,

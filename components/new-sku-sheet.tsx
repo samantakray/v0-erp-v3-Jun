@@ -24,6 +24,7 @@ import { getNextSkuNumber, createSkuBatch, getPredictedNextSkuNumber } from "@/a
 import { logger } from "@/lib/logger"
 import { ImageUpload } from "@/components/image-upload"
 
+
 export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   const [multipleSkus, setMultipleSkus] = useState([
     {
@@ -46,7 +47,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   const [isPredictedNumber, setIsPredictedNumber] = useState(true)
   const [uploadErrors, setUploadErrors] = useState({})
 
-  // Initialize the SKU variants and fetch the predicted next number when the sheet is opened
+  // Initialize the SKU in the set and fetch the predicted next number when the sheet is opened
   useEffect(() => {
     if (open) {
       setError(null)
@@ -106,7 +107,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
     }
   }
 
-  // Handle image URL change for a specific SKU variant
+  // Handle image URL change for a specific SKU in the set
   const handleImageChange = (imageUrl, file, index) => {
     // 🔍 DEBUG LOGGING - Client-side upload state tracking
     console.log("🔍 NewSKUSheet DEBUG - Image change:", {
@@ -132,7 +133,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
     }
   }
 
-  // Handle image upload error for a specific SKU variant
+  // Handle image upload error for a specific SKU in the set
   const handleImageError = (error, index) => {
     setUploadErrors((prev) => ({
       ...prev,
@@ -158,7 +159,7 @@ if (hasInvalidCategory) {
 }
 
     if (multipleSkus.length === 0) {
-      setError("Cannot create SKUs: No variants added.")
+      setError("Cannot create SKUs: No SKUs in the set added.")
       return
     }
 
@@ -511,12 +512,13 @@ if (hasInvalidCategory) {
                   </div>
                 ) : (
                   <div className="text-center p-4 border rounded-md text-muted-foreground">
-                    No SKU variants added. Click "Add SKU Variant" to create multiple SKUs.
+                    You haven't added any SKUs to the set. Click "Add SKU to Set" to create multiple SKUs with the same SKU ID # (Ex: RG-2000, NK-2000).
                   </div>
                 )}
 
-                {/* Moved Add SKU Variant button below the table and centered it */}
+                {/* Moved Add SKU to Set button below the table and centered it */}
                 <div className="flex justify-center mt-4">
+                  <span title="This will add another SKU type with the same SKU-ID #">
                   <Button
                     type="button"
                     onClick={() => {
@@ -537,8 +539,9 @@ if (hasInvalidCategory) {
                       ])
                     }}
                   >
-                    Add SKU Variant
+                    Add SKU to Set
                   </Button>
+                  </span>
                 </div>
               </div>
             </div>
