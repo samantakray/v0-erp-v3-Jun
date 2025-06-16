@@ -60,6 +60,7 @@ export const GOLD_TYPE = {
   YELLOW_GOLD: "Yellow Gold",
   WHITE_GOLD: "White Gold",
   ROSE_GOLD: "Rose Gold",
+  NONE: "None",
 } as const
 
 // Gold type codes for reference (not stored in database)
@@ -67,6 +68,7 @@ export const GOLD_TYPE_CODES = {
   [GOLD_TYPE.YELLOW_GOLD]: "18KYG",
   [GOLD_TYPE.WHITE_GOLD]: "18KWG",
   [GOLD_TYPE.ROSE_GOLD]: "18KRG",
+  [GOLD_TYPE.NONE]: "n/a",
 } as const
 
 export type GoldType = (typeof GOLD_TYPE)[keyof typeof GOLD_TYPE]
