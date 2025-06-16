@@ -260,6 +260,14 @@ export default function OrdersPage() {
       ),
     },
     {
+      header: "Creation Date",
+      accessor: "createdAt",
+      render: (row) => (
+        <span className="italic text-gray-500 text-sm">
+      {row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "-"}
+      </span>      ),
+    },
+    {
       header: "Order Status",
       accessor: "status",
       render: (row) => (
