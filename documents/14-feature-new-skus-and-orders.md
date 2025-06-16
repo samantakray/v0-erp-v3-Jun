@@ -122,6 +122,9 @@ const [uploadErrors, setUploadErrors] = useState({})
    // Example: "RG-0001", "NK-0001"
    \`\`\`
 
+
+
+  
 ### Database Interactions
 
 #### Tables Involved
@@ -323,6 +326,62 @@ const parseBulkSkuInput = (input) => {
     })
 }
 \`\`\`
+
+
+ ### Submission Validation
+
+The SKU creation process includes multiple validation checks before submission:
+
+#### 1. **Category Validation**
+- **None Check**: Prevents submission if any SKU variant has "None" as its category
+  ```typescript
+  const hasInvalidCategory = multipleSkus.some(sku => sku.category === "None");
+  ```
+- **Duplicate Check**: Ensures all variants in a set have unique categories
+  ```typescript
+  const hasDuplicates = new Set(categories).size !== categories.length;
+  ```
+  - Error: "Cannot create SKUs: Each variant must have a unique category."
+
+#### 2. **Empty Set Validation**
+- Prevents submission with an empty SKU set
+  ```typescript
+  if (multipleSkus.length === 0) {
+    setError("Cannot create SKUs: No SKUs in the set added.")
+  }
+  ```
+
+#### 3. **Image Upload Validation**
+- Checks for failed image uploads across all variants
+  ```typescript
+  if (Object.keys(uploadErrors).length > 0) {
+    setError("Please fix image upload errors before creating SKUs.")
+  }
+  ```
+
+#### 4. **Size Constraints Validation**
+- Enforces category-specific size limits:
+  ```typescript
+  const { min, max, step, unit } = getSizeConstraints(sku.category);
+  ```
+  - Minimum/Maximum values
+  - Step increments (e.g., 0.5 for ring sizes)
+  - Unit display (e.g., "mm" for chains)
+
+#### 5. **Database Constraints**
+- **Unique SKU ID**: Enforced by PostgreSQL unique constraint
+  ```sql
+  CREATE TABLE skus (sku_id TEXT UNIQUE NOT NULL);
+  ```
+- **Foreign Key Constraints**: Valid collection names and category types
+- **Data Type Validation**: Ensures numeric fields contain valid numbers
+
+#### Validation Flow
+Client-Side Checks → Server-Side Validation → Database Constraints
+↓ ↓
+Error Display → → Transaction Rollback
+This comprehensive validation strategy ensures data integrity while providing immediate user feedback for common errors.
+
 
 ### Database Interactions
 

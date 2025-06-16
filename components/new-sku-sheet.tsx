@@ -158,12 +158,21 @@ if (hasInvalidCategory) {
   return;
 }
 
+//// New duplicate category check
+const categories = multipleSkus.map(sku => sku.category);
+const hasDuplicates = new Set(categories).size !== categories.length;
+if (hasDuplicates) {
+  setError("Cannot create SKUs: Each variant must have a unique category.");
+  return;
+}
+
+//check if the set is empty
     if (multipleSkus.length === 0) {
       setError("Cannot create SKUs: No SKUs in the set added.")
       return
     }
 
-    // Check if there are any upload errors
+    // Check if there are any image upload errors
     if (Object.keys(uploadErrors).length > 0) {
       setError("Please fix image upload errors before creating SKUs.")
       return
