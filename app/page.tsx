@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { OrdersTable } from "@/components/orders-table"
 import { NewOrderSheet } from "@/components/new-order-sheet"
-import { getOpenOrderCount } from "@/app/actions/order-actions"
+import { getOpenOrderCount, createOrder } from "@/app/actions/order-actions"
 import { SkuStatistics } from "@/components/sku-statistics"
+import { OrderConfirmationDialog } from "@/components/order-confirmation-dialog"
 
 export default function Dashboard() {
   const [newOrderOpen, setNewOrderOpen] = useState(false)
@@ -16,6 +17,13 @@ export default function Dashboard() {
   // Add state for open order count
   const [openOrderCount, setOpenOrderCount] = useState(0)
   const [isLoadingOrderCount, setIsLoadingOrderCount] = useState(true)
+
+  // Add state for order submission
+  const [isOrderSubmitting, setIsOrderSubmitting] = useState(false)
+
+  // Add state for order confirmation dialog
+  const [showOrderConfirmation, setShowOrderConfirmation] = useState(false)
+  const [confirmedOrder, setConfirmedOrder] = useState(null)
 
   // Fetch open order count on component mount
   useEffect(() => {
@@ -33,6 +41,71 @@ export default function Dashboard() {
 
     fetchOpenOrderCount()
   }, [])
+
+  // Function to refresh the open order count after creating an order
+  const refreshOrderCount = async () => {
+    console.log("🔄 Refreshing order count...")
+    try {
+      const result = await getOpenOrderCount()
+      setOpenOrderCount(result.count)
+      console.log("✅ Order count refreshed:", result.count)
+    } catch (error) {
+      console.error("❌ Error refreshing order count:", error)
+    }
+  }
+
+  // Handle viewing order details from confirmation dialog
+  const handleViewOrderDetails = () => {
+    if (confirmedOrder) {
+      // Navigate to orders page with the specific order
+      window.location.href = `/orders?orderId=${confirmedOrder.id}`
+      setShowOrderConfirmation(false)
+    }
+  }
+
+  // Handle order creation
+  const handleOrderCreated = async (order) => {
+    console.log("🔍 ORDER CREATION ATTEMPTED from app/page.tsx:", order)
+    console.log("🔍 About to call createOrder server action...")
+    
+    setIsOrderSubmitting(true)
+    
+    try {
+      // Call the createOrder server action
+      const result = await createOrder(order)
+      
+      if (result.success) {
+        console.log("✅ Order created successfully:", result.orderId)
+        
+        // Create the confirmed order object with server-generated ID
+        const confirmedOrderData = {
+          ...order,
+          id: result.orderId, // Use server-generated ID
+        }
+        
+        // Set the confirmed order and show the confirmation dialog
+        setConfirmedOrder(confirmedOrderData)
+        setShowOrderConfirmation(true)
+        
+        // Close the order sheet
+        setNewOrderOpen(false)
+        
+        // Refresh the order count to reflect the new order
+        await refreshOrderCount()
+        
+      } else {
+        console.error("❌ Failed to create order:", result.error)
+        // TODO: Show error toast/notification
+        // Keep the sheet open so user can retry
+      }
+    } catch (error) {
+      console.error("❌ Error during order creation:", error)
+      // TODO: Show error toast/notification
+      // Keep the sheet open so user can retry
+    } finally {
+      setIsOrderSubmitting(false)
+    }
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -109,8 +182,22 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Fixed NewOrderSheet component */}
-      <NewOrderSheet open={newOrderOpen} onOpenChange={setNewOrderOpen} editOrder={editOrder} />
+      {/* Fixed NewOrderSheet component - Added onOrderCreated prop */}
+      <NewOrderSheet 
+        open={newOrderOpen} 
+        onOpenChange={setNewOrderOpen} 
+        editOrder={editOrder}
+        onOrderCreated={handleOrderCreated}
+        isSubmitting={isOrderSubmitting}
+      />
+
+      {/* Order Confirmation Dialog */}
+      <OrderConfirmationDialog
+        order={confirmedOrder}
+        open={showOrderConfirmation}
+        onOpenChange={setShowOrderConfirmation}
+        onViewDetails={handleViewOrderDetails}
+      />
     </div>
   )
 }
