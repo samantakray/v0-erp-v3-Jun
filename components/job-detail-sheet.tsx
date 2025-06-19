@@ -24,7 +24,7 @@ import StoneAllocationRow from "@/components/stone-allocation-row"
 import DiamondAllocationRow from "@/components/diamond-allocation-row" // Import the new component
 import type { Job, StoneLotData, StoneAllocation, DiamondLotData, DiamondAllocation } from "@/types" // Added Diamond types
 import type { JobPhase } from "@/constants/job-workflow" // Declare the JobPhase variable
-import { generateClientId } from "@/lib/client-id-generator"
+//import { generateClientId } from "@/lib/client-id-generator"
 
 // Mock manufacturers data (can be replaced by fetchManufacturers if available)
 const MANUFACTURERS = [
@@ -261,9 +261,20 @@ export function JobDetailSheet({
   // Stone Allocation Handlers
   const addStoneAllocationRow = () => {
     logger.debug("JobDetailSheet: Adding new stone allocation row")
+    
+    // Check if "None" already exists
+    const hasNone = stoneAllocations.some(alloc => alloc.lot_number === "None")
+    
     setStoneAllocations([
       ...stoneAllocations,
-      { clientId: generateAllocationClientID(), lot_number: "", stone_type: "", size: "", quantity: 0, weight: 0 },
+      { 
+        clientId: generateAllocationClientID(), 
+        lot_number: "", // Always start with empty, user can choose "None" if needed
+        stone_type: "", 
+        size: "", 
+        quantity: 0, 
+        weight: 0 
+      },
     ])
   }
 
@@ -294,11 +305,15 @@ export function JobDetailSheet({
   }
 
   const totalStoneQuantity = useMemo(
-    () => stoneAllocations.reduce((sum, alloc) => sum + (Number(alloc.quantity) || 0), 0),
+    () => stoneAllocations
+      .filter(alloc => alloc.lot_number !== "None")
+      .reduce((sum, alloc) => sum + (Number(alloc.quantity) || 0), 0),
     [stoneAllocations],
   )
   const totalStoneWeight = useMemo(
-    () => stoneAllocations.reduce((sum, alloc) => sum + (Number(alloc.weight) || 0), 0),
+    () => stoneAllocations
+      .filter(alloc => alloc.lot_number !== "None")
+      .reduce((sum, alloc) => sum + (Number(alloc.weight) || 0), 0),
     [stoneAllocations],
   )
 
@@ -310,8 +325,14 @@ export function JobDetailSheet({
 
     stoneAllocations.forEach((alloc, index) => {
       const rowErrors: { [field: string]: string } = {}
+      
+      // Skip validation for "None" selections
+      if (alloc.lot_number === "None") {
+        return // Skip all validation for "None" rows
+      }
+      
       if (!alloc.lot_number) {
-        rowErrors.lot_number = "Lot number is required."
+        rowErrors.lot_number = "Lot number is required. If no stones required for this job then select the None option"
         isValid = false
       } else if (usedLotNumbers.has(alloc.lot_number)) {
         rowErrors.lot_number = "This lot is already selected."
@@ -353,9 +374,10 @@ export function JobDetailSheet({
     }
     setIsSubmittingStone(true)
     try {
-      const allocationsData = stoneAllocations.map(
-        ({ clientId, available_quantity, available_weight, ...rest }) => rest,
-      )
+      const allocationsData = stoneAllocations
+        .filter(alloc => alloc.lot_number !== "None") // Filter out "None" allocations
+        .map(({ clientId, available_quantity, available_weight, ...rest }) => rest)
+      
       const result = await updateJobPhase(job!.id, JOB_PHASE.STONE, {
         allocations: allocationsData,
         total_quantity: totalStoneQuantity,
@@ -365,10 +387,15 @@ export function JobDetailSheet({
       if (!result.success) throw new Error(result.error || "Failed to update job phase")
       setJobStatus(result.newStatus!)
       setCurrentPhase(result.newPhase!)
+      
+      // Update sticker data based on whether stones were allocated
+      const actualAllocations = stoneAllocations.filter(alloc => alloc.lot_number !== "None")
       setStickerData({
         "Total Stones": totalStoneQuantity,
-        "Total Weight": `${totalStoneWeight.toFixed(2)} ct`,
-        "Allocated Lots": allocationsData.map((a) => a.lot_number).join(", "),
+        "Total Weight": totalStoneQuantity > 0 ? `${totalStoneWeight.toFixed(2)} ct` : "No stones allocated",
+        "Allocated Lots": actualAllocations.length > 0 
+          ? actualAllocations.map((a) => a.lot_number).join(", ")
+          : "None",
       })
       setStickerOpen(true)
     } catch (error: any) {

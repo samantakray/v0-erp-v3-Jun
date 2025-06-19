@@ -104,7 +104,15 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
     }
 
     if (phase === JOB_PHASE.STONE) {
-      updateData.stone_data = data as StoneSelectionData
+      // Filter out "None" allocations before saving
+      const filteredAllocations = (data as StoneSelectionData).allocations.filter(
+        alloc => alloc.lot_number !== "None"
+      )
+      
+      updateData.stone_data = {
+        ...data,
+        allocations: filteredAllocations
+      } as StoneSelectionData
       logger.info("Stone data to be saved:", { stone_data: updateData.stone_data })
     } else if (phase === JOB_PHASE.DIAMOND) {
       updateData.diamond_data = data as DiamondSelectionData // Use the new type

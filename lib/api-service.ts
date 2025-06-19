@@ -1123,7 +1123,18 @@ export async function fetchStoneLots(): Promise<StoneLotData[]> {
       allMappedLotNumbers: mappedData.map((lot) => lot.lot_number),
     })
 
-    return mappedData
+    // Add "None" option at the beginning of the array
+    const noneOption: StoneLotData = {
+      id: "none",
+      lot_number: "None",
+      stone_type: "",
+      size: "",
+      quantity: 0,
+      weight: 0,
+      available: true
+    }
+
+    return [noneOption, ...mappedData]
   } catch (error: any) {
     const duration = performance.now() - startTime
     logger.error(`Unexpected error in fetchStoneLots`, {
