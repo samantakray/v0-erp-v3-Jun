@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useJob } from "../layout"
+import { useState, use } from "react"
+import { useJob } from "@/components/job-context-provider"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,7 +21,12 @@ import { logger } from "@/lib/logger"
 // Mock diamond lots
 const DIAMOND_LOTS = ["LOT-D001", "LOT-D002", "LOT-D003", "LOT-D004"]
 
-export default function DiamondSelectionPage({ params }: { params: { jobId: string; orderId: string } }) {
+export default function DiamondSelectionPage({ params }: { params: Promise<{ jobId: string; orderId: string }> }) {
+  // Console log for debugging - unwrap params using React.use()
+  const { jobId, orderId } = use(params)
+  console.log("🔍 DiamondSelectionPage - Client Component executing")
+  console.log("🔍 DiamondSelectionPage - jobId:", jobId, "orderId:", orderId)
+
   const job = useJob()
   const router = useRouter()
   const [diamondData, setDiamondData] = useState({
@@ -36,7 +41,7 @@ export default function DiamondSelectionPage({ params }: { params: { jobId: stri
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleCompleteDiamondSelection = async (e) => {
+  const handleCompleteDiamondSelection = async (e: React.FormEvent) => {
     e.preventDefault()
     if (
       !diamondData.lotNumber ||
@@ -63,7 +68,7 @@ export default function DiamondSelectionPage({ params }: { params: { jobId: stri
       }
 
       // Call the server action to update the job phase
-      const result = await updateJobPhase(job.id, JOB_PHASE.DIAMOND_SELECTION, phaseData)
+      const result = await updateJobPhase(job.id, JOB_PHASE.DIAMOND, phaseData)
 
       if (!result.success) {
         throw new Error(result.error || "Failed to update diamond selection")
@@ -79,8 +84,9 @@ export default function DiamondSelectionPage({ params }: { params: { jobId: stri
       })
       setPreview(true)
     } catch (error) {
-      logger.error("Error submitting diamond selection:", error)
-      setError(error.message || "Failed to complete diamond selection. Please try again.")
+      const errorMessage = error instanceof Error ? error.message : "Failed to complete diamond selection. Please try again."
+      logger.error("Error submitting diamond selection:", { error })
+      setError(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -89,13 +95,13 @@ export default function DiamondSelectionPage({ params }: { params: { jobId: stri
   const handleStickerClose = () => {
     setPreview(false)
     // Navigate to the next phase
-    router.push(`/orders/${params.orderId}/jobs/${params.jobId}/${JOB_PHASE.MANUFACTURER}`)
+    router.push(`/orders/${orderId}/jobs/${jobId}/${JOB_PHASE.MANUFACTURER}`)
   }
 
   return (
     <div className="space-y-6">
-      <JobHeader orderId={params.orderId} />
-      <PhaseNavigation orderId={params.orderId} jobId={params.jobId} />
+      <JobHeader orderId={orderId} />
+      <PhaseNavigation orderId={orderId} jobId={jobId} />
 
       {error && (
         <Alert variant="destructive">

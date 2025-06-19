@@ -14,6 +14,7 @@ import {
   LogOut,
   Diamond,
   Gem,
+  Briefcase,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -38,6 +39,12 @@ export function Sidebar() {
       icon: ClipboardList,
       href: "/orders",
       active: pathname === "/orders",
+    },
+    {
+      label: "Jobs",
+      icon: Briefcase,
+      href: "/job_list",
+      active: pathname === "/job_list",
     },
     {
       label: "Production",

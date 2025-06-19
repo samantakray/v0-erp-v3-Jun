@@ -39,7 +39,8 @@ export default function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState("pending")
+  const [activeTab, setActiveTab] = useState("all")
+  const [searchQuery, setSearchQuery] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
@@ -85,20 +86,44 @@ export default function OrdersPage() {
 
   // Handle order ID from URL params
   useEffect(() => {
+    // Console logging for query parameter modal pattern - Root Cause #1
+    console.log("🔍 Orders Page - URL params effect triggered")
+    console.log("🔍 Orders Page - orderIdFromParams:", orderIdFromParams)
+    console.log("🔍 Orders Page - Current URL:", window.location.href)
+    console.log("🔍 Orders Page - Current pathname:", window.location.pathname)
+    console.log("🔍 Orders Page - Current search params:", window.location.search)
+    
     if (orderIdFromParams) {
+      console.log("🔍 Orders Page - MODAL PATTERN: Opening order modal for:", orderIdFromParams)
+      console.log("🔍 Orders Page - MODAL PATTERN: URL shows /orders?orderId= instead of /orders/[orderId]")
+      console.log("🔍 Orders Page - MODAL PATTERN: This prevents job navigation from updating URLs")
+      
       setSelectedOrderId(orderIdFromParams)
       setIsOrderDetailOpen(true)
+      
+      console.log("🔍 Orders Page - MODAL PATTERN: OrderDetailSheet modal opened")
+      console.log("🔍 Orders Page - MODAL PATTERN: Any job navigation will be within this modal context")
+    } else {
+      console.log("🔍 Orders Page - No orderIdFromParams, modal will remain closed")
     }
   }, [orderIdFromParams])
 
   const handleOrderClick = (orderId: string) => {
+    // Console logging for order click behavior
+    console.log("🔍 Orders Page - Order clicked:", orderId)
+    
     const order = orders.find((o) => o.id === orderId)
+    console.log("🔍 Orders Page - Found order:", order)
+    
     setSelectedOrderId(orderId)
 
     if (order?.status === "Draft") {
+      console.log("🔍 Orders Page - Draft order, opening edit modal")
       setEditOrder(order)
       setNewOrderOpen(true)
     } else {
+      console.log("🔍 Orders Page - Non-draft order, opening detail modal")
+      console.log("🔍 Orders Page - This will show order details in modal, not navigate to /orders/[orderId]")
       setIsOrderDetailOpen(true)
     }
   }
@@ -311,7 +336,7 @@ export default function OrdersPage() {
             className="flex flex-col items-center gap-1"
             onClick={(e) => {
               e.stopPropagation()
-              if (row.status === "Draft") {
+              if (row.status === ORDER_STATUS.DRAFT) {
                 handleEditOrder(row.id)
               } else {
                 handleOrderClick(row.id)
@@ -319,7 +344,7 @@ export default function OrdersPage() {
             }}
             disabled={isSubmitting}
           >
-            {row.status === "Draft" ? (
+            {row.status === ORDER_STATUS.DRAFT ? (
               <>
                 <Edit className="h-4 w-4" />
                 <span className="text-[10px]">Edit</span>
@@ -349,14 +374,38 @@ export default function OrdersPage() {
     },
   ]
 
-  // Filter orders based on active tab
+  // Filter orders based on active tab and search query
   const filteredOrders = orders.filter((order) => {
-    if (activeTab === "pending") {
-      return [ORDER_STATUS.NEW, ORDER_STATUS.PENDING, ORDER_STATUS.DRAFT].includes(order.status)
+    // First apply tab filter
+    let tabMatch = true
+    if (activeTab === "all") {
+      tabMatch = true // Show all orders
+    } else if (activeTab === "pending") {
+      tabMatch = [ORDER_STATUS.NEW, ORDER_STATUS.PENDING, ORDER_STATUS.DRAFT].includes(order.status)
     } else if (activeTab === "completed") {
-      return order.status === ORDER_STATUS.COMPLETED
+      tabMatch = order.status === ORDER_STATUS.COMPLETED
+    } else if (activeTab === "overdue") {
+      // Show orders that are overdue (daysToDue < 0) and not completed
+      tabMatch = order.daysToDue !== undefined && order.daysToDue < 0 && order.status !== ORDER_STATUS.COMPLETED
     }
-    return true
+
+    // Then apply search filter
+    let searchMatch = true
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim()
+      searchMatch = (
+        order.id.toLowerCase().includes(query) ||
+        order.customerName?.toLowerCase().includes(query) ||
+        order.orderType?.toLowerCase().includes(query) ||
+        order.status.toLowerCase().includes(query) ||
+        order.skus.some(sku => 
+          sku.name.toLowerCase().includes(query) ||
+          sku.category?.toLowerCase().includes(query)
+        )
+      )
+    }
+
+    return tabMatch && searchMatch
   })
 
   // Mock refresh function
@@ -403,10 +452,10 @@ export default function OrdersPage() {
     return filteredOrders.slice(startIndex, endIndex)
   }
 
-  // Reset to page 1 when changing tabs
+  // Reset to page 1 when changing tabs or search query
   useEffect(() => {
     setCurrentPage(1)
-  }, [activeTab])
+  }, [activeTab, searchQuery])
 
   // Clear success message after 5 seconds
   useEffect(() => {
@@ -445,7 +494,7 @@ export default function OrdersPage() {
         )}
 
         {actionSuccess && (
-          <Alert variant="success" className="mb-4 bg-green-50 text-green-800 border-green-200">
+          <Alert className="mb-4 bg-green-50 text-green-800 border-green-200">
             <AlertDescription>{actionSuccess}</AlertDescription>
           </Alert>
         )}
@@ -456,30 +505,15 @@ export default function OrdersPage() {
             <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input type="search" placeholder="Search orders..." className="w-[300px] pl-8" />
+                <Input 
+                  type="search" 
+                  placeholder="Search orders..." 
+                  className="w-[300px] pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Filter
-                </Button>
-                <Select>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="new">New</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="outline" size="sm">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Date Range
-                </Button>
-              </div>
+
             </div>
           </div>
         </div>
@@ -488,12 +522,21 @@ export default function OrdersPage() {
           {/* Default filters as tabs */}
           <div className="border-b px-4 py-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-[400px] grid-cols-2">
+              <TabsList className="grid w-[800px] grid-cols-4">
+                <TabsTrigger value="all">
+                  All Orders ({orders.length})
+                </TabsTrigger>
                 <TabsTrigger value="pending">
-                  Pending Orders ({orders.filter((o) => ["New", "Pending", "Draft"].includes(o.status)).length})
+                  Pending Orders ({orders.filter((o) => [ORDER_STATUS.NEW, ORDER_STATUS.PENDING, ORDER_STATUS.DRAFT].includes(o.status)).length})
                 </TabsTrigger>
                 <TabsTrigger value="completed">
-                  Completed Orders ({orders.filter((o) => o.status === "Completed").length})
+                  Completed Orders ({orders.filter((o) => o.status === ORDER_STATUS.COMPLETED).length})
+                </TabsTrigger>
+                <TabsTrigger value="overdue">
+                  <span>Overdue Orders</span>
+                  <span className={`ml-1 ${orders.filter((o) => o.daysToDue !== undefined && o.daysToDue < 0 && o.status !== ORDER_STATUS.COMPLETED).length > 0 ? 'text-red-500 font-bold' : ''}`}>
+                    ({orders.filter((o) => o.daysToDue !== undefined && o.daysToDue < 0 && o.status !== ORDER_STATUS.COMPLETED).length})
+                  </span>
                 </TabsTrigger>
               </TabsList>
             </Tabs>

@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useJob } from "../layout"
+import { useState, use } from "react"
+import { useJob } from "@/components/job-context-provider"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,7 +15,12 @@ import { updateJobPhase } from "@/app/actions/job-actions"
 import { JOB_PHASE } from "@/constants/job-workflow"
 import { logger } from "@/lib/logger"
 
-export default function CompletePage({ params }: { params: { jobId: string; orderId: string } }) {
+export default function CompletePage({ params }: { params: Promise<{ jobId: string; orderId: string }> }) {
+  // Console log for debugging - unwrap params using React.use()
+  const { jobId, orderId } = use(params)
+  console.log("🔍 CompletePage - Client Component executing")
+  console.log("🔍 CompletePage - jobId:", jobId, "orderId:", orderId)
+
   const job = useJob()
   const router = useRouter()
   const [preview, setPreview] = useState(false)
@@ -50,8 +55,9 @@ export default function CompletePage({ params }: { params: { jobId: string; orde
       })
       setPreview(true)
     } catch (error) {
-      logger.error("Error completing job:", error)
-      setError(error.message || "Failed to complete job. Please try again.")
+      const errorMessage = error instanceof Error ? error.message : "Failed to complete job. Please try again."
+      logger.error("Error completing job:", { error })
+      setError(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -60,7 +66,7 @@ export default function CompletePage({ params }: { params: { jobId: string; orde
   const handleStickerClose = () => {
     setPreview(false)
     // Navigate back to the order
-    router.push(`/orders/${params.orderId}`)
+    router.push(`/orders/${orderId}`)
   }
 
   // Mock data for summary
@@ -71,8 +77,8 @@ export default function CompletePage({ params }: { params: { jobId: string; orde
 
   return (
     <div className="space-y-6">
-      <JobHeader orderId={params.orderId} />
-      <PhaseNavigation orderId={params.orderId} jobId={params.jobId} />
+      <JobHeader orderId={orderId} />
+      <PhaseNavigation orderId={orderId} jobId={jobId} />
 
       {error && (
         <Alert variant="destructive">

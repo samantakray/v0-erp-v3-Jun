@@ -305,6 +305,87 @@ export async function fetchJob(jobId: string): Promise<Job | null> {
   }
 }
 
+export async function fetchAllJobs(): Promise<Job[]> {
+  const startTime = performance.now()
+  logger.info(`fetchAllJobs called`, { data: { useMocks } })
+
+  if (useMocks) {
+    // Use mock data
+    const duration = performance.now() - startTime
+    logger.info(`fetchAllJobs completed with mock data`, {
+      data: { count: mockJobs.length },
+      duration,
+    })
+    return mockJobs
+  }
+
+  try {
+    // Get all jobs with SKU and order details
+    logger.debug(`Fetching all jobs from Supabase`)
+    const { data, error } = await supabase
+      .from("jobs")
+      .select(`
+        *,
+        skus:sku_id (*),
+        orders:order_id (order_id)
+      `)
+      .order('created_at', { ascending: false })
+
+    if (error || !data) {
+      const duration = performance.now() - startTime
+      logger.error(`Error fetching jobs from Supabase`, {
+        error,
+        duration,
+      })
+      return []
+    }
+
+    // Check if jobs are empty
+    if (data.length === 0) {
+      logger.info(`No jobs found in database`)
+    }
+
+    // Format jobs
+    const jobs = data.map((job) => ({
+      id: job.job_id,
+      orderId: job.orders?.order_id || 'Unknown',
+      skuId: job.skus?.sku_id || 'Unknown',
+      name: job.skus?.name || 'Unknown',
+      category: job.skus?.category || '',
+      goldType: job.skus?.gold_type || '',
+      stoneType: job.skus?.stone_type || '',
+      diamondType: job.skus?.diamond_type || '',
+      size: job.size || '',
+      status: job.status,
+      manufacturer: job.manufacturer_data?.name || "Pending",
+      productionDate: job.production_date,
+      dueDate: job.due_date,
+      createdAt: job.created_at,
+      image: job.skus?.image_url || '',
+      currentPhase: job.current_phase,
+      stoneData: job.stone_data,
+      diamondData: job.diamond_data,
+      manufacturerData: job.manufacturer_data,
+      qcData: job.qc_data,
+    }))
+
+    const duration = performance.now() - startTime
+    logger.info(`fetchAllJobs completed successfully`, {
+      data: { count: jobs.length },
+      duration,
+    })
+
+    return jobs
+  } catch (error) {
+    const duration = performance.now() - startTime
+    logger.error(`Unexpected error in fetchAllJobs`, {
+      error,
+      duration,
+    })
+    return []
+  }
+}
+
 export async function fetchOrders(): Promise<Order[]> {
   const startTime = performance.now()
   logger.info(`fetchOrders called`, { data: { useMocks } })
