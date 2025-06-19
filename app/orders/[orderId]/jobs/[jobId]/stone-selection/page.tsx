@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { useJob } from "../layout"
+import { useState, useRef, useEffect, use } from "react"
+import { useJob } from "@/components/job-context-provider"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -56,7 +56,12 @@ function LotRow({ value, onChange, onDelete }: LotRowProps) {
   )
 }
 
-export default function StoneSelectionPage({ params }: { params: { jobId: string; orderId: string } }) {
+export default function StoneSelectionPage({ params }: { params: Promise<{ jobId: string; orderId: string }> }) {
+  // Console log for debugging - unwrap params using React.use()
+  const { jobId, orderId } = use(params)
+  console.log("🔍 StoneSelectionPage - Client Component executing")
+  console.log("🔍 StoneSelectionPage - jobId:", jobId, "orderId:", orderId)
+
   const job = useJob()
   const router = useRouter()
   const [allocs, setAllocs] = useState<Array<{ lot: string; qty: number; wt: string }>>([{ lot: "", qty: 0, wt: "" }])
@@ -65,48 +70,10 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const firstInputRef = useRef<HTMLInputElement>(null)
-  const [jobData, setJobData] = useState(null)
 
   const isValid = allocs.every((a) => a.lot && a.qty > 0 && +a.wt > 0)
 
-  // Add direct Supabase check on component mount
-  useEffect(() => {
-    async function checkJobDirectly() {
-      console.log("Directly checking job in Supabase:", params.jobId)
 
-      try {
-        // First, try to get the job directly using job_id
-        const { data: directJobData, error: directError } = await supabase
-          .from("jobs")
-          .select("*")
-          .eq("job_id", params.jobId)
-          .single()
-
-        console.log("Direct job query result:", {
-          found: !!directJobData,
-          error: directError ? directError.message : null,
-          data: directJobData,
-        })
-
-        setJobData(directJobData)
-
-        // If that fails, try to get all jobs to see what's available
-        if (!directJobData || directError) {
-          const { data: allJobs, error: allJobsError } = await supabase.from("jobs").select("job_id").limit(20)
-
-          console.log("All jobs query result:", {
-            count: allJobs?.length || 0,
-            error: allJobsError ? allJobsError.message : null,
-            jobIds: allJobs?.map((j) => j.job_id),
-          })
-        }
-      } catch (e) {
-        console.error("Error in direct Supabase check:", e)
-      }
-    }
-
-    checkJobDirectly()
-  }, [params.jobId])
 
   // 2. Check Form Validation
   console.log("Form data:", allocs)
@@ -128,7 +95,7 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
 
   async function submit(e) {
     // 1. Add Earlier Logging
-    console.log("Submit function called", { isValid, isSubmitting, jobId: params.jobId })
+    console.log("Submit function called", { isValid, isSubmitting, jobId })
     e.preventDefault()
     if (!isValid || isSubmitting) {
       console.log("Submit function early return", { isValid, isSubmitting })
@@ -147,11 +114,11 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
       }))
 
       // Direct Supabase check before calling server action
-      console.log("Checking job directly before update:", params.jobId)
+      console.log("Checking job directly before update:", jobId)
       const { data: preCheckData, error: preCheckError } = await supabase
         .from("jobs")
         .select("id")
-        .eq("job_id", params.jobId)
+        .eq("job_id", jobId)
         .single()
 
       console.log("Pre-update job check:", {
@@ -191,13 +158,13 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
 
       // 1) Pre-call log
       logger.debug("Calling updateJobPhase", {
-        jobId: params.jobId,
+        jobId,
         phase: JOB_PHASE.STONE,
         allocationsData,
       })
 
       // Update job phase using server action
-      const result = await updateJobPhase(params.jobId, JOB_PHASE.STONE, {
+      const result = await updateJobPhase(jobId, JOB_PHASE.STONE, {
         allocations: allocationsData,
         timestamp: new Date().toISOString(),
       })
@@ -217,7 +184,7 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
     } catch (error) {
       console.error("Full error object:", error)
       logger.error("Error submitting stone allocation:", {
-        data: { jobId: params.jobId, allocationsData: allocs.map((a) => ({ lot: a.lot, qty: a.qty, wt: a.wt })) },
+        data: { jobId, allocationsData: allocs.map((a) => ({ lot: a.lot, qty: a.qty, wt: a.wt })) },
         error,
       })
       setError("Failed to submit allocation. Please try again.")
@@ -235,29 +202,15 @@ export default function StoneSelectionPage({ params }: { params: { jobId: string
   const handleStickerClose = () => {
     setPreview(false)
     // Navigate to the next phase
-    router.push(`/orders/${params.orderId}/jobs/${params.jobId}/${JOB_PHASE.DIAMOND}`)
+    router.push(`/orders/${orderId}/jobs/${jobId}/${JOB_PHASE.DIAMOND}`)
   }
 
   return (
     <div className="space-y-6">
-      <JobHeader orderId={params.orderId} />
-      <PhaseNavigation orderId={params.orderId} jobId={params.jobId} />
+      <JobHeader orderId={orderId} />
+      <PhaseNavigation orderId={orderId} jobId={jobId} />
 
-      {/* Add job data display */}
-      <Card className="bg-yellow-50">
-        <CardContent className="pt-6">
-          <h3 className="font-medium mb-2">Debug Information</h3>
-          <div className="text-sm">
-            <p>Job ID: {params.jobId}</p>
-            <p>Job Data Found: {jobData ? "Yes" : "No"}</p>
-            {jobData && (
-              <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto">
-                {JSON.stringify(jobData, null, 2)}
-              </pre>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+
 
       <Card>
         <CardHeader>

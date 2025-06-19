@@ -49,26 +49,40 @@ export function OrderDetailSheet({ orderId, open, onOpenChange, onEdit }) {
   const [selectedTeam, setSelectedTeam] = useState("bag")
   const [error, setError] = useState(null)
 
+  // Console logging for modal navigation debugging - Root Cause #2
+  console.log("🔍 Order Detail Sheet - Component rendered")
+  console.log("🔍 Order Detail Sheet - orderId:", orderId, "open:", open)
+  console.log("🔍 Order Detail Sheet - Current URL:", typeof window !== 'undefined' ? window.location.href : 'SSR')
+  console.log("🔍 Order Detail Sheet - Modal pattern prevents URL updates for job navigation")
+
   // Fetch order and jobs data
   useEffect(() => {
     async function loadData() {
-      if (!orderId || !open) return
+      if (!orderId || !open) {
+        console.log("🔍 Order Detail Sheet - loadData skipped:", { orderId, open })
+        return
+      }
 
       try {
         setLoading(true)
         setError(null)
+        
+        console.log("🔍 Order Detail Sheet - Starting to load order and jobs data")
 
         // Fetch order data
         const { order: orderData } = await fetchOrder(orderId)
         setOrder(orderData)
+        console.log("🔍 Order Detail Sheet - Order data loaded:", orderData)
 
         // Fetch jobs for this order
         const jobsData = await fetchJobs(orderId)
         setJobs(jobsData)
+        console.log("🔍 Order Detail Sheet - Jobs data loaded:", jobsData)
 
         // Determine order status based on job statuses
         const status = determineOrderStatus(jobsData)
         setCurrentStatus(status)
+        console.log("🔍 Order Detail Sheet - Order status determined:", status)
 
         // Update action based on status
         if (status === ORDER_STATUS.COMPLETED) {
@@ -78,11 +92,13 @@ export function OrderDetailSheet({ orderId, open, onOpenChange, onEdit }) {
         } else {
           setCurrentAction("Stone selection")
         }
+        console.log("🔍 Order Detail Sheet - Current action set:", currentAction)
       } catch (err) {
-        console.error("Error loading order data:", err)
+        console.error("🔍 Order Detail Sheet - Error loading order data:", err)
         setError("Failed to load order data. Please try again.")
       } finally {
         setLoading(false)
+        console.log("🔍 Order Detail Sheet - Data loading completed")
       }
     }
 
@@ -90,37 +106,53 @@ export function OrderDetailSheet({ orderId, open, onOpenChange, onEdit }) {
   }, [orderId, open])
 
   const handleStatusChange = (status) => {
+    console.log("🔍 Order Detail Sheet - Status change requested:", status)
     setCurrentStatus(status)
     // In a real app, you would update the backend here
   }
 
   const handleEditOrder = () => {
+    console.log("🔍 Order Detail Sheet - Edit order clicked")
     if (onEdit) {
       onEdit(orderId)
     }
   }
 
   const openImageDialog = (image) => {
+    console.log("🔍 Order Detail Sheet - Image dialog opened:", image)
     setSelectedImage(image)
     setImageDialogOpen(true)
   }
 
   const handleJobClick = async (jobId) => {
     try {
+      // Console logging for modal-based job navigation - Root Cause #2
+      console.log("🔍 Order Detail Sheet - MODAL JOB NAVIGATION: Job clicked:", jobId)
+      console.log("🔍 Order Detail Sheet - MODAL JOB NAVIGATION: About to open JobDetailSheet modal")
+      console.log("🔍 Order Detail Sheet - MODAL JOB NAVIGATION: This will NOT update the browser URL")
+      console.log("🔍 Order Detail Sheet - MODAL JOB NAVIGATION: URL will remain:", typeof window !== 'undefined' ? window.location.href : 'SSR')
+      
       const job = await fetchJob(jobId)
+      console.log("🔍 Order Detail Sheet - MODAL JOB NAVIGATION: Job data fetched:", job)
+      
       setSelectedJob(job)
       setIsJobDetailOpen(true)
+      
+      console.log("🔍 Order Detail Sheet - MODAL JOB NAVIGATION: JobDetailSheet modal opened")
+      console.log("🔍 Order Detail Sheet - MODAL JOB NAVIGATION: Browser URL unchanged - this is the root cause!")
     } catch (err) {
-      console.error("Error fetching job details:", err)
+      console.error("🔍 Order Detail Sheet - MODAL JOB NAVIGATION: Error fetching job details:", err)
     }
   }
 
   const handleDeleteJob = (job) => {
+    console.log("🔍 Order Detail Sheet - Delete job requested:", job)
     setJobToDelete(job)
     setDeleteDialogOpen(true)
   }
 
   const confirmDeleteJob = () => {
+    console.log("🔍 Order Detail Sheet - Delete job confirmed")
     // In a real app, you would delete the job from the backend
     // For now, we'll just close the dialog
     setDeleteDialogOpen(false)

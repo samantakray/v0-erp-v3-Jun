@@ -4,14 +4,14 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Eye, Filter, Calendar, Edit, Trash2, Loader2, AlertCircle, Briefcase } from "lucide-react"
+import { Search, Eye, Filter, Calendar, Edit, Trash2, Loader2, AlertCircle } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DataTable, type Column } from "@/app/components/DataTable"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { logger } from "@/lib/logger"
 import type { Job } from "@/types"
-import { JOB_STATUS } from "@/constants/job-workflow"
+import { JOB_STATUS, JOB_STATUS_STYLES, getJobStatusStyle } from "@/constants/job-workflow"
 import { fetchAllJobs } from "@/lib/api-service"
 import Link from "next/link"
 
@@ -94,10 +94,10 @@ export default function JobListPage() {
     if (searchTerm) {
       filtered = filtered.filter(
         (job) =>
-          job.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          job.skuId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          job.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          job.orderId.toLowerCase().includes(searchTerm.toLowerCase())
+          (job.job_id || job.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (job.skus?.sku_id || job.sku_id || job.skuId).toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (job.skus?.name || job.name).toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (job.orders?.order_id || job.orderId).toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
 
@@ -126,31 +126,31 @@ export default function JobListPage() {
 
   const columns: Column<JobWithDays>[] = [
     {
-      accessor: "id",
+      accessor: "job_id",
       header: "Job #",
       render: (job) => (
         <div className="font-medium text-blue-600 hover:text-blue-800">
-          <Link href={`/orders/${job.orderId}/jobs/${job.id}`}>
-            {job.id}
+          <Link href={`/orders/${job.orders?.order_id || job.orderId}/jobs/${job.job_id || job.id}`}>
+            {job.job_id || job.id}
           </Link>
         </div>
       ),
     },
     {
-      accessor: "skuId",
+      accessor: "sku_id",
       header: "SKU #",
       render: (job) => (
         <div className="font-medium">
-          {job.skuId}
+          {job.skus?.sku_id || job.sku_id || job.skuId}
         </div>
       ),
     },
     {
-      accessor: "productionDate",
+      accessor: "production_date",
       header: "Production Date",
       render: (job) => (
         <div>
-          {job.productionDate ? new Date(job.productionDate).toLocaleDateString() : "Not set"}
+          {job.production_date ? new Date(job.production_date).toLocaleDateString() : job.productionDate ? new Date(job.productionDate).toLocaleDateString() : "Not set"}
         </div>
       ),
     },
@@ -182,13 +182,7 @@ export default function JobListPage() {
       header: "Job Status",
       render: (job) => (
         <Badge 
-          variant={
-            job.status === JOB_STATUS.COMPLETED 
-              ? "default" 
-              : job.status === JOB_STATUS.QC_FAILED 
-                ? "destructive" 
-                : "secondary"
-          }
+          className={getJobStatusStyle(job.status).className}
         >
           {job.status}
         </Badge>
@@ -199,7 +193,7 @@ export default function JobListPage() {
       header: "Job Actions",
       render: (job) => (
         <div className="flex gap-2">
-          <Link href={`/orders/${job.orderId}/jobs/${job.id}`}>
+          <Link href={`/orders/${job.orders?.order_id || job.orderId}/jobs/${job.job_id || job.id}`}>
             <Button variant="ghost" size="sm">
               <Eye className="h-4 w-4 mr-1" />
               View
@@ -210,90 +204,87 @@ export default function JobListPage() {
     },
   ]
 
-  if (loading) {
-    return (
-      <div className="container mx-auto py-6">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <span className="ml-2">Loading jobs...</span>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto py-6">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
-
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <Briefcase className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Jobs</h1>
+    <div className="flex flex-col">
+      <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-muted/40 px-6">
+        <div className="flex w-full items-center justify-between">
+          <h1 className="text-xl font-semibold">Jobs</h1>
         </div>
-        <Button onClick={handleRefresh} variant="outline">
-          Refresh
-        </Button>
-      </div>
+      </header>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-4 mb-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="all">All Jobs</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-            <TabsTrigger value="overdue">Overdue</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        <div className="flex gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search jobs by Job #, SKU #, or Order #..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
-            />
+      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        <div className="flex flex-col gap-4">
+          <h1 className="text-lg font-semibold mb-2">Job List</h1>
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search jobs..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-[300px] pl-8"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  {Object.values(JOB_STATUS).map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {Object.values(JOB_STATUS).map((status) => (
-                <SelectItem key={status} value={status}>
-                  {status}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
-      </div>
 
-      {/* Results summary */}
-      <div className="mb-4 text-sm text-muted-foreground">
-        Showing {getCurrentPageData().length} of {filteredJobs.length} jobs
-      </div>
+        <div className="border rounded-lg">
+          {/* Default filters as tabs */}
+          <div className="border-b px-4 py-2">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-[800px] grid-cols-4">
+                <TabsTrigger value="all">
+                  All Jobs ({jobs.length})
+                </TabsTrigger>
+                <TabsTrigger value="pending">
+                  Pending Jobs ({jobs.filter((j) => j.status !== JOB_STATUS.COMPLETED).length})
+                </TabsTrigger>
+                <TabsTrigger value="completed">
+                  Completed Jobs ({jobs.filter((j) => j.status === JOB_STATUS.COMPLETED).length})
+                </TabsTrigger>
+                <TabsTrigger value="overdue">
+                  <span>Overdue Jobs</span>
+                  <span className={`ml-1 ${jobs.filter((j) => j.daysToDue !== undefined && j.daysToDue < 0 && j.status !== JOB_STATUS.COMPLETED).length > 0 ? 'text-red-500 font-bold' : ''}`}>
+                    ({jobs.filter((j) => j.daysToDue !== undefined && j.daysToDue < 0 && j.status !== JOB_STATUS.COMPLETED).length})
+                  </span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
-      {/* Data Table */}
-      <DataTable
-        data={getCurrentPageData()}
-        columns={columns}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-      />
+          {/* Results summary */}
+          <div className="px-4 py-2 text-sm text-muted-foreground border-b">
+            Showing {getCurrentPageData().length} of {filteredJobs.length} jobs
+          </div>
+
+          <DataTable
+            data={getCurrentPageData()}
+            columns={columns}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            loading={loading}
+            error={error}
+            onRefresh={handleRefresh}
+          />
+        </div>
+      </main>
     </div>
   )
 } 

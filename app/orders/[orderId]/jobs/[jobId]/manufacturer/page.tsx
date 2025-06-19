@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useJob } from "../layout"
+import { useState, use } from "react"
+import { useJob } from "@/components/job-context-provider"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -50,7 +50,12 @@ const MANUFACTURERS = [
   },
 ]
 
-export default function ManufacturerPage({ params }: { params: { jobId: string; orderId: string } }) {
+export default function ManufacturerPage({ params }: { params: Promise<{ jobId: string; orderId: string }> }) {
+  // Console log for debugging - unwrap params using React.use()
+  const { jobId, orderId } = use(params)
+  console.log("🔍 ManufacturerPage - Client Component executing")
+  console.log("🔍 ManufacturerPage - jobId:", jobId, "orderId:", orderId)
+
   const job = useJob()
   const router = useRouter()
   const [manufacturerData, setManufacturerData] = useState({
@@ -62,7 +67,7 @@ export default function ManufacturerPage({ params }: { params: { jobId: string; 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleAssignManufacturer = async (e) => {
+  const handleAssignManufacturer = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!manufacturerData.manufacturerId || !manufacturerData.expectedCompletion || isSubmitting) {
       return
@@ -99,8 +104,9 @@ export default function ManufacturerPage({ params }: { params: { jobId: string; 
       })
       setPreview(true)
     } catch (error) {
-      logger.error("Error assigning manufacturer:", error)
-      setError(error.message || "Failed to assign manufacturer. Please try again.")
+      const errorMessage = error instanceof Error ? error.message : "Failed to assign manufacturer. Please try again."
+      logger.error("Error assigning manufacturer:", { error })
+      setError(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -109,13 +115,13 @@ export default function ManufacturerPage({ params }: { params: { jobId: string; 
   const handleStickerClose = () => {
     setPreview(false)
     // Navigate to the next phase
-    router.push(`/orders/${params.orderId}/jobs/${params.jobId}/${JOB_PHASE.QC}`)
+    router.push(`/orders/${orderId}/jobs/${jobId}/${JOB_PHASE.QUALITY_CHECK}`)
   }
 
   return (
     <div className="space-y-6">
-      <JobHeader orderId={params.orderId} />
-      <PhaseNavigation orderId={params.orderId} jobId={params.jobId} />
+      <JobHeader orderId={orderId} />
+      <PhaseNavigation orderId={orderId} jobId={jobId} />
 
       {error && (
         <Alert variant="destructive">
