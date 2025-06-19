@@ -8,6 +8,23 @@ const config: Config = {
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "*.{js,ts,jsx,tsx,mdx}"
   ],
+  safelist: [
+    // Job status colors
+    'bg-gray-500', 'hover:bg-gray-600',
+    'bg-blue-500', 'hover:bg-blue-600', 
+    'bg-amber-500', 'hover:bg-amber-600',
+    'bg-purple-500', 'hover:bg-purple-600',
+    'bg-orange-500', 'hover:bg-orange-600',
+    'bg-yellow-500', 'hover:bg-yellow-600',
+    'bg-indigo-500', 'hover:bg-indigo-600',
+    'bg-cyan-500', 'hover:bg-cyan-600',
+    'bg-red-500', 'hover:bg-red-600',
+    'bg-green-500', 'hover:bg-green-600',
+    // Order status colors
+    'bg-emerald-500', 'hover:bg-emerald-600',
+    'bg-black', 'hover:bg-gray-800',
+    'text-white'
+  ],
   theme: {
   	extend: {
   		colors: {

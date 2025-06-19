@@ -14,6 +14,65 @@ export const JOB_STATUS = {
 
 export type JobStatus = (typeof JOB_STATUS)[keyof typeof JOB_STATUS]
 
+// Job status colors and styling
+export const JOB_STATUS_STYLES = {
+  [JOB_STATUS.NEW]: {
+    className: "bg-gray-500 hover:bg-gray-600 text-white",
+    color: "gray",
+    description: "New job"
+  },
+  [JOB_STATUS.BAG_CREATED]: {
+    className: "bg-blue-500 hover:bg-blue-600 text-white",
+    color: "blue", 
+    description: "Bag created"
+  },
+  [JOB_STATUS.STONE_SELECTED]: {
+    className: "bg-amber-500 hover:bg-amber-600 text-white",
+    color: "amber",
+    description: "Stone selected"
+  },
+  [JOB_STATUS.DIAMOND_SELECTED]: {
+    className: "bg-purple-500 hover:bg-purple-600 text-white",
+    color: "purple",
+    description: "Diamond selected"
+  },
+  [JOB_STATUS.SENT_TO_MANUFACTURER]: {
+    className: "bg-orange-500 hover:bg-orange-600 text-white",
+    color: "orange",
+    description: "Sent to manufacturer"
+  },
+  [JOB_STATUS.IN_PRODUCTION]: {
+    className: "bg-yellow-500 hover:bg-yellow-600 text-white",
+    color: "yellow",
+    description: "In production"
+  },
+  [JOB_STATUS.RECEIVED_FROM_MANUFACTURER]: {
+    className: "bg-indigo-500 hover:bg-indigo-600 text-white",
+    color: "indigo",
+    description: "Received from manufacturer"
+  },
+  [JOB_STATUS.QC_PASSED]: {
+    className: "bg-cyan-500 hover:bg-cyan-600 text-white",
+    color: "cyan",
+    description: "QC passed"
+  },
+  [JOB_STATUS.QC_FAILED]: {
+    className: "bg-red-500 hover:bg-red-600 text-white",
+    color: "red",
+    description: "QC failed"
+  },
+  [JOB_STATUS.COMPLETED]: {
+    className: "bg-green-500 hover:bg-green-600 text-white",
+    color: "green",
+    description: "Job completed"
+  }
+} as const
+
+// Helper function to get job status style
+export const getJobStatusStyle = (status: JobStatus) => {
+  return JOB_STATUS_STYLES[status] || JOB_STATUS_STYLES[JOB_STATUS.NEW]
+}
+
 // Order statuses - Adding this new section
 export const ORDER_STATUS = {
   NEW: "New",

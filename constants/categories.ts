@@ -154,8 +154,7 @@ export const STONE_TYPE = {
   ETY_TURQULOIS: "Ety Turqulois",
   MADEIRA_CITRINE: "Madeira Citrine",
   RUBY: "Ruby", // Keep existing options
-  EMERALD: "Emerald", // Keep existing options
-  SAPPHIRE: "Sapphire", // Keep existing options
+  
 } as const
 
 // Stone type codes for reference (not stored in database)
@@ -216,7 +215,8 @@ export const STONE_TYPE_CODES = {
   [STONE_TYPE.RED_JASPER]: "RJ",
   [STONE_TYPE.ROSE_QUARTZ]: "RQ",
   [STONE_TYPE.RUBELITE]: "RL",
-  [STONE_TYPE.RUBELITE_QUARTZ]: "RB",
+  [STONE_TYPE.RUBELITE_QUARTZ]: "RBQ",
+  [STONE_TYPE.RUBY]: "RB", 
   [STONE_TYPE.SAPPHIRE]: "SE",
   [STONE_TYPE.SKY_BLUE_TOPAZ]: "LZ",
   [STONE_TYPE.SMOKY_QUARTZ]: "SQ",
@@ -238,9 +238,7 @@ export const STONE_TYPE_CODES = {
   [STONE_TYPE.CATS_EYE]: "CE",
   [STONE_TYPE.ETY_TURQULOIS]: "STQ",
   [STONE_TYPE.MADEIRA_CITRINE]: "MCI",
-  [STONE_TYPE.RUBY]: "RB", // Added code for existing options
-  [STONE_TYPE.EMERALD]: "EM", // Added code for existing options
-  [STONE_TYPE.SAPPHIRE]: "SP", // Added code for existing options
+  
 } as const
 
 export type StoneType = (typeof STONE_TYPE)[keyof typeof STONE_TYPE]

@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useJob } from "../layout"
+import { useState, use } from "react"
+import { useJob } from "@/components/job-context-provider"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,7 +18,12 @@ import { JOB_PHASE } from "@/constants/job-workflow"
 import { updateJobPhase } from "@/app/actions/job-actions"
 import { logger } from "@/lib/logger"
 
-export default function QualityCheckPage({ params }: { params: { jobId: string; orderId: string } }) {
+export default function QualityCheckPage({ params }: { params: Promise<{ jobId: string; orderId: string }> }) {
+  // Console log for debugging - unwrap params using React.use()
+  const { jobId, orderId } = use(params)
+  console.log("🔍 QualityCheckPage - Client Component executing")
+  console.log("🔍 QualityCheckPage - jobId:", jobId, "orderId:", orderId)
+
   const job = useJob()
   const router = useRouter()
   const [qcData, setQcData] = useState({
@@ -51,7 +56,7 @@ export default function QualityCheckPage({ params }: { params: { jobId: string; 
       }
 
       // Call the server action to update the job phase
-      const result = await updateJobPhase(job.id, JOB_PHASE.QC, phaseData)
+      const result = await updateJobPhase(job.id, JOB_PHASE.QUALITY_CHECK, phaseData)
 
       if (!result.success) {
         throw new Error(result.error || "Failed to complete quality check")
@@ -65,8 +70,9 @@ export default function QualityCheckPage({ params }: { params: { jobId: string; 
       })
       setPreview(true)
     } catch (error) {
-      logger.error("Error completing quality check:", error)
-      setError(error.message || "Failed to complete quality check. Please try again.")
+      const errorMessage = error instanceof Error ? error.message : "Failed to complete quality check. Please try again."
+      logger.error("Error completing quality check:", { error })
+      setError(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -76,14 +82,14 @@ export default function QualityCheckPage({ params }: { params: { jobId: string; 
     setPreview(false)
     // Navigate to the next phase if passed
     if (qcData.passed) {
-      router.push(`/orders/${params.orderId}/jobs/${params.jobId}/${JOB_PHASE.COMPLETE}`)
+      router.push(`/orders/${orderId}/jobs/${jobId}/${JOB_PHASE.COMPLETE}`)
     }
   }
 
   return (
     <div className="space-y-6">
-      <JobHeader orderId={params.orderId} />
-      <PhaseNavigation orderId={params.orderId} jobId={params.jobId} />
+      <JobHeader orderId={orderId} />
+      <PhaseNavigation orderId={orderId} jobId={jobId} />
 
       {error && (
         <Alert variant="destructive">

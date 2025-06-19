@@ -37,6 +37,14 @@ export function JobDetailSheet({
   open,
   onOpenChange,
 }: { job: Job | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+  // Console logging for modal-based job navigation - Root Cause #2
+  console.log("🔍 Job Detail Sheet - Component rendered")
+  console.log("🔍 Job Detail Sheet - job:", job?.id, "open:", open)
+  console.log("🔍 Job Detail Sheet - Current URL:", typeof window !== 'undefined' ? window.location.href : 'SSR')
+  console.log("🔍 Job Detail Sheet - MODAL CONTEXT: This job detail is shown in a modal/sheet")
+  console.log("🔍 Job Detail Sheet - MODAL CONTEXT: Any phase navigation here will NOT update browser URL")
+  console.log("🔍 Job Detail Sheet - MODAL CONTEXT: URL remains unchanged during job workflow")
+  
   logger.debug("Rendering JobDetailSheet component", { jobId: job?.id, open })
 
   const [currentPhase, setCurrentPhase] = useState(job?.currentPhase || JOB_PHASE.STONE)

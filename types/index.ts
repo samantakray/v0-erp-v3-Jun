@@ -69,8 +69,12 @@ export interface DiamondAllocation {
 
 export interface Job {
   id: string
-  orderId: string
-  skuId: string
+  job_id: string // Display ID like J-0001-1
+  order_id: string // UUID reference to orders.id
+  order_item_id: string // UUID reference to order items
+  sku_id: string // UUID reference to SKUs
+  orderId: string // Legacy field
+  skuId: string // Legacy field
   name: string
   category: string
   goldType: string
@@ -79,11 +83,26 @@ export interface Job {
   size: string // Note: This is still a string in the Job interface
   status: JobStatus // Updated to use the JobStatus type
   manufacturer: string
-  productionDate: string
+  production_date: string // Database field name
+  productionDate: string // Legacy field
   dueDate: string
   createdAt: string
   image: string
   currentPhase: JobPhase // Updated to use the JobPhase type
+  // Nested relations from database query
+  orders?: {
+    id: string
+    order_id: string
+    customer_name: string
+    status: string
+    order_type: string
+  }
+  skus?: {
+    id: string
+    sku_id: string
+    name: string
+    image_url: string
+  }
   stoneData?: {
     allocations: StoneAllocation[]
     total_quantity: number
