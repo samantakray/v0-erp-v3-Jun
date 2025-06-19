@@ -1302,7 +1302,22 @@ export async function fetchDiamondLots(): Promise<DiamondLotData[]> {
     // Ensure data matches DiamondLotData type, though direct mapping is likely fine
     const typedData = validLots as DiamondLotData[]
 
-    return typedData
+    // Add "None" option at the beginning of the array
+    const noneOption: DiamondLotData = {
+      id: "none",
+      lot_number: "None",
+      size: "",
+      shape: "",
+      quality: "",
+      a_type: "",
+      stonegroup: "",
+      quantity: 0,
+      weight: 0,
+      price: 0,
+      status: "available"
+    }
+
+    return [noneOption, ...typedData]
   } catch (error: any) {
     const duration = performance.now() - startTime
     logger.error(`Unexpected error in fetchDiamondLots`, {

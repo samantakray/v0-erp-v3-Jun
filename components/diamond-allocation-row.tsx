@@ -109,58 +109,70 @@ export default function DiamondAllocationRow({
       firstAvailableLot: diamondLots[0],
     })
 
-    const selectedLot = diamondLots.find((lot) => lot.lot_number === value)
-
-    if (selectedLot) {
-      logger.debug("DiamondAllocationRow: Selected lot found with detailed data", {
-        selectedLot: {
-          id: selectedLot.id,
-          lot_number: selectedLot.lot_number,
-          lot_number_type: typeof selectedLot.lot_number,
-          size: selectedLot.size,
-          size_type: typeof selectedLot.size,
-          shape: selectedLot.shape,
-          shape_type: typeof selectedLot.shape,
-          quality: selectedLot.quality,
-          quality_type: typeof selectedLot.quality,
-          quantity: selectedLot.quantity,
-          quantity_type: typeof selectedLot.quantity,
-          weight: selectedLot.weight,
-          weight_type: typeof selectedLot.weight,
-          status: selectedLot.status,
-        },
-        mappingActions: {
-          lot_number: selectedLot.lot_number,
-          size: selectedLot.size,
-          shape: selectedLot.shape,
-          quality: selectedLot.quality,
-          available_quantity: selectedLot.quantity,
-        },
-      })
-
-      onChange(index, "lot_number", selectedLot.lot_number)
-      onChange(index, "size", selectedLot.size)
-      onChange(index, "shape", selectedLot.shape)
-      onChange(index, "quality", selectedLot.quality)
-      onChange(index, "available_quantity", selectedLot.quantity)
-    } else {
-      logger.warn("DiamondAllocationRow: Selected lot NOT found with detailed analysis", {
-        searchValue: value,
-        searchValue_type: typeof value,
-        searchValue_valid: !!(value && value.trim()),
-        availableLotNumbers: diamondLots.map((l) => l.lot_number),
-        exactMatches: diamondLots.filter((l) => l.lot_number === value),
-        partialMatches: diamondLots.filter((l) => l.lot_number && l.lot_number.includes(value)),
-        caseInsensitiveMatches: diamondLots.filter(
-          (l) => l.lot_number && l.lot_number.toLowerCase() === value.toLowerCase(),
-        ),
-      })
-
-      onChange(index, "lot_number", value)
+    if (value === "None") {
+      // Handle "None" selection
+      logger.debug("DiamondAllocationRow: Setting allocation to None", { index })
+      onChange(index, "lot_number", "None")
       onChange(index, "size", "")
       onChange(index, "shape", "")
       onChange(index, "quality", "")
+      onChange(index, "quantity", 0)
+      onChange(index, "weight", 0)
       onChange(index, "available_quantity", undefined)
+    } else {
+      const selectedLot = diamondLots.find((lot) => lot.lot_number === value)
+
+      if (selectedLot) {
+        logger.debug("DiamondAllocationRow: Selected lot found with detailed data", {
+          selectedLot: {
+            id: selectedLot.id,
+            lot_number: selectedLot.lot_number,
+            lot_number_type: typeof selectedLot.lot_number,
+            size: selectedLot.size,
+            size_type: typeof selectedLot.size,
+            shape: selectedLot.shape,
+            shape_type: typeof selectedLot.shape,
+            quality: selectedLot.quality,
+            quality_type: typeof selectedLot.quality,
+            quantity: selectedLot.quantity,
+            quantity_type: typeof selectedLot.quantity,
+            weight: selectedLot.weight,
+            weight_type: typeof selectedLot.weight,
+            status: selectedLot.status,
+          },
+          mappingActions: {
+            lot_number: selectedLot.lot_number,
+            size: selectedLot.size,
+            shape: selectedLot.shape,
+            quality: selectedLot.quality,
+            available_quantity: selectedLot.quantity,
+          },
+        })
+
+        onChange(index, "lot_number", selectedLot.lot_number)
+        onChange(index, "size", selectedLot.size)
+        onChange(index, "shape", selectedLot.shape)
+        onChange(index, "quality", selectedLot.quality)
+        onChange(index, "available_quantity", selectedLot.quantity)
+      } else {
+        logger.warn("DiamondAllocationRow: Selected lot NOT found with detailed analysis", {
+          searchValue: value,
+          searchValue_type: typeof value,
+          searchValue_valid: !!(value && value.trim()),
+          availableLotNumbers: diamondLots.map((l) => l.lot_number),
+          exactMatches: diamondLots.filter((l) => l.lot_number === value),
+          partialMatches: diamondLots.filter((l) => l.lot_number && l.lot_number.includes(value)),
+          caseInsensitiveMatches: diamondLots.filter(
+            (l) => l.lot_number && l.lot_number.toLowerCase() === value.toLowerCase(),
+          ),
+        })
+
+        onChange(index, "lot_number", value)
+        onChange(index, "size", "")
+        onChange(index, "shape", "")
+        onChange(index, "quality", "")
+        onChange(index, "available_quantity", undefined)
+      }
     }
   }
 
@@ -179,6 +191,9 @@ export default function DiamondAllocationRow({
     })),
   })
 
+  // Check if "None" is selected for conditional rendering
+  const isNoneSelected = allocation.lot_number === "None"
+
   return (
     <div className="grid grid-cols-[0.5fr_2fr_1fr_1fr_1fr_1.5fr_1.5fr_0.5fr] gap-4 items-start py-2 border-b last:border-b-0">
       <div className="text-sm text-muted-foreground pt-2">{index + 1}.</div>
@@ -189,6 +204,14 @@ export default function DiamondAllocationRow({
           </SelectTrigger>
           <SelectContent>
             {diamondLots.map((lot, optionIndex) => {
+              // If this is "None" and another row already has "None", skip it
+              if (lot.lot_number === "None") {
+                const otherNoneExists = diamondAllocations.some(
+                  (alloc, i) => i !== index && alloc.lot_number === "None"
+                )
+                if (otherNoneExists) return null
+              }
+
               // Log each option as it's being rendered
               logger.debug(`DiamondAllocationRow: Rendering Select option ${optionIndex}`, {
                 index,
@@ -224,10 +247,10 @@ export default function DiamondAllocationRow({
         <Input
           id={quantityInputId}
           type="number"
-          value={allocation.quantity === 0 ? "" : allocation.quantity}
+          value={isNoneSelected ? "" : (allocation.quantity === 0 ? "" : allocation.quantity)}
           onChange={(e) => onChange(index, "quantity", Number(e.target.value))}
-          disabled={isSubmitting}
-          placeholder="0"
+          disabled={isSubmitting || isNoneSelected}
+          placeholder={isNoneSelected ? "-" : "0"}
           className={`${validationErrors.quantity ? "border-destructive" : ""} mt-0`}
         />
         {validationErrors.quantity && <p className="text-destructive text-xs mt-1">{validationErrors.quantity}</p>}
@@ -237,10 +260,10 @@ export default function DiamondAllocationRow({
           id={weightInputId}
           type="number"
           step="0.01"
-          value={allocation.weight === 0 ? "" : allocation.weight}
+          value={isNoneSelected ? "" : (allocation.weight === 0 ? "" : allocation.weight)}
           onChange={(e) => onChange(index, "weight", Number(e.target.value))}
-          disabled={isSubmitting}
-          placeholder="0.00"
+          disabled={isSubmitting || isNoneSelected}
+          placeholder={isNoneSelected ? "-" : "0.00"}
           className={`${validationErrors.weight ? "border-destructive" : ""} mt-0`}
         />
         {validationErrors.weight && <p className="text-destructive text-xs mt-1">{validationErrors.weight}</p>}

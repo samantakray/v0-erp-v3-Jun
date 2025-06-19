@@ -468,11 +468,15 @@ export function JobDetailSheet({
   }
 
   const totalDiamondQuantity = useMemo(
-    () => diamondAllocations.reduce((sum, alloc) => sum + (Number(alloc.quantity) || 0), 0),
+    () => diamondAllocations
+      .filter(alloc => alloc.lot_number !== "None")
+      .reduce((sum, alloc) => sum + (Number(alloc.quantity) || 0), 0),
     [diamondAllocations],
   )
   const totalDiamondWeight = useMemo(
-    () => diamondAllocations.reduce((sum, alloc) => sum + (Number(alloc.weight) || 0), 0),
+    () => diamondAllocations
+      .filter(alloc => alloc.lot_number !== "None")
+      .reduce((sum, alloc) => sum + (Number(alloc.weight) || 0), 0),
     [diamondAllocations],
   )
 
@@ -484,8 +488,14 @@ export function JobDetailSheet({
 
     diamondAllocations.forEach((alloc, index) => {
       const rowErrors: { [field: string]: string } = {}
+      
+      // Skip validation for "None" selections
+      if (alloc.lot_number === "None") {
+        return // Skip all validation for "None" rows
+      }
+      
       if (!alloc.lot_number) {
-        rowErrors.lot_number = "Lot number is required."
+        rowErrors.lot_number = "Lot number is required. If no diamonds required for this job then select the None option"
         isValid = false
       } else if (usedLotNumbers.has(alloc.lot_number)) {
         rowErrors.lot_number = "This lot is already selected."
@@ -526,7 +536,10 @@ export function JobDetailSheet({
     }
     setIsSubmittingDiamond(true)
     try {
-      const allocationsData = diamondAllocations.map(({ clientId, available_quantity, ...rest }) => rest)
+      const allocationsData = diamondAllocations
+        .filter(alloc => alloc.lot_number !== "None") // Filter out "None" allocations
+        .map(({ clientId, available_quantity, ...rest }) => rest)
+      
       const result = await updateJobPhase(job!.id, JOB_PHASE.DIAMOND, {
         allocations: allocationsData,
         total_quantity: totalDiamondQuantity,
@@ -536,10 +549,15 @@ export function JobDetailSheet({
       if (!result.success) throw new Error(result.error || "Failed to update job phase")
       setJobStatus(result.newStatus!)
       setCurrentPhase(result.newPhase!)
+      
+      // Update sticker data based on whether diamonds were allocated
+      const actualAllocations = diamondAllocations.filter(alloc => alloc.lot_number !== "None")
       setStickerData({
         "Total Diamonds": totalDiamondQuantity,
-        "Total Weight": `${totalDiamondWeight.toFixed(2)} carat`,
-        "Allocated Lots": allocationsData.map((a) => a.lot_number).join(", "),
+        "Total Weight": totalDiamondQuantity > 0 ? `${totalDiamondWeight.toFixed(2)} carat` : "No diamonds allocated",
+        "Allocated Lots": actualAllocations.length > 0 
+          ? actualAllocations.map((a) => a.lot_number).join(", ")
+          : "None",
       })
       setStickerOpen(true)
     } catch (error: any) {
