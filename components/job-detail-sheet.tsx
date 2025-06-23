@@ -32,6 +32,16 @@ const MANUFACTURERS = [
   { id: "m2", name: "Precision Jewelry Co.", currentLoad: 8, pastJobCount: 98, rating: 4.5 },
 ]
 
+/**
+ * Displays and manages the detailed workflow for a job in a modal sheet, allowing users to progress through all job phases including stone allocation, diamond allocation, manufacturer assignment, quality check, and job completion.
+ *
+ * Provides interactive UI for each phase, handles data fetching, validation, state management, and updates job status and phase via API calls. Supports image preview and sticker summary for each phase.
+ *
+ * @param job - The job object to display and manage, or null if no job is selected
+ * @param open - Whether the modal sheet is open
+ * @param onOpenChange - Callback to control the open state of the modal
+ * @returns The rendered job detail sheet modal, or null if no job is provided or the modal is closed
+ */
 export function JobDetailSheet({
   job,
   open,
