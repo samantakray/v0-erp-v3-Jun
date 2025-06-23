@@ -4,7 +4,7 @@ import { createServiceClient } from "@/lib/supabaseClient"
 import { logger } from "@/lib/logger"
 import { revalidatePath } from "next/cache"
 import { JOB_STATUS, JOB_PHASE, JOB_STATUS_TO_ORDER_STATUS, ORDER_STATUS } from "@/constants/job-workflow"
-import type { StoneAllocation, DiamondAllocation } from "@/types" // Added DiamondAllocation
+import type { StoneAllocation, DiamondAllocation, GoldUsageDetail, DiamondUsageDetail, ColoredStoneUsageDetail } from "@/types" // Added DiamondAllocation and QC usage detail types
 
 // Type definitions for action parameters
 type StoneSelectionData = {
@@ -29,9 +29,12 @@ type ManufacturerData = {
 }
 
 type QCData = {
-  weight: number
+  weight?: number // Keep for backward compatibility
   passed: boolean
-  notes: string
+  notes?: string
+  goldUsageDetails?: GoldUsageDetail[]
+  diamondUsageDetails?: DiamondUsageDetail[]
+  coloredStoneUsageDetails?: ColoredStoneUsageDetail[]
 }
 
 export async function updateJobPhase(jobId: string, phase: string, data: any) {
@@ -128,6 +131,17 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
     } else if (phase === JOB_PHASE.MANUFACTURER) {
       updateData.manufacturer_data = data
     } else if (phase === JOB_PHASE.QUALITY_CHECK) {
+      // Console logging for QC data backend processing
+      console.log("🔍 QC BACKEND - Backend received QC data:", data)
+      console.log("🔍 QC BACKEND - QC data structure analysis:", {
+        hasGoldUsage: !!data.goldUsageDetails,
+        goldUsageCount: data.goldUsageDetails?.length || 0,
+        hasDiamondUsage: !!data.diamondUsageDetails,
+        diamondUsageCount: data.diamondUsageDetails?.length || 0,
+        hasColoredStoneUsage: !!data.coloredStoneUsageDetails,
+        coloredStoneUsageCount: data.coloredStoneUsageDetails?.length || 0,
+        dataSize: JSON.stringify(data).length
+      })
       updateData.qc_data = data
     }
 

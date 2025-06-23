@@ -117,7 +117,7 @@ export interface Job {
     timestamp: string
   }
   manufacturerData?: any
-  qcData?: any
+  qcData?: QCData
 }
 
 export interface Order {
@@ -165,4 +165,40 @@ export interface OrderFormState {
   orderId?: string // Make orderId optional
   customerName: string
   // other fields...
+}
+
+// QC Data interfaces for extended quality check functionality
+export interface QCData {
+  notes?: string
+  passed?: boolean | null
+  weight?: number // Keep existing field for backward compatibility
+  goldUsageDetails?: GoldUsageDetail[]
+  diamondUsageDetails?: DiamondUsageDetail[]
+  coloredStoneUsageDetails?: ColoredStoneUsageDetail[]
+}
+
+export interface GoldUsageDetail {
+  description: string // Gold type from GOLD_TYPE constants
+  grossWeight: number
+  scrapWeight: number
+}
+
+export interface DiamondUsageDetail {
+  type: string // Diamond lot number
+  returnQuantity: number
+  returnWeight: number
+  lossQuantity: number
+  lossWeight: number
+  breakQuantity: number
+  breakWeight: number
+}
+
+export interface ColoredStoneUsageDetail {
+  type: string // Stone lot number
+  returnQuantity: number
+  returnWeight: number
+  lossQuantity: number
+  lossWeight: number
+  breakQuantity: number
+  breakWeight: number
 }

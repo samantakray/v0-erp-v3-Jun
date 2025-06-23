@@ -221,6 +221,8 @@ export interface QCData {
 
 ### **2.3 Server Action Updates**
 **Location**: `app/actions/job-actions.ts` - `updateJobPhase` function
+Update the QC phase handling to include new fields in the data payload.
+
 
 **Update handleCompleteQC function**:
 ```typescript
@@ -244,8 +246,21 @@ const handleCompleteQC = async (passed: boolean) => {
 
 ## **Part 3: Additional Enhancements (Optional/Future)**
 
-### **3.1 Complete Tab Display Updates**
-Update the Complete tab to show the new QC usage details in the summary.
+### **3.1 Complete Tab Display Updates** ✅ IMPLEMENTED
+**Location**: `components/job-detail-sheet.tsx` - Complete tab Quality Check section
+
+**✅ IMPLEMENTED**: Enhanced Quality Check display in Complete tab summary:
+- **Visual QC Result**: Color-coded PASSED (green) / FAILED (red) status
+- **Gold Usage Summary**: Shows each gold type with gross and scrap weights
+- **Diamond Usage Summary**: Compact display of Return/Loss/Break quantities and weights  
+- **Colored Stone Usage Summary**: Compact display of Return/Loss/Break quantities and weights
+- **Backward Compatibility**: Still shows legacy measured weight field if present
+- **Notes Display**: QC notes prominently displayed
+- **Console Logging**: Tracks when QC usage details are displayed in Complete tab
+
+**Display Format**:
+- Gold: `{goldType}: {grossWeight}gm gross, {scrapWeight}gm scrap`
+- Diamond/Stone: `{lotNumber}: R:{returnQty}pcs/{returnWt}ct, L:{lossQty}pcs/{lossWt}ct, B:{breakQty}pcs/{breakWt}ct`
 
 ### **3.2 Validation Enhancements**
 - Add business logic validation (e.g., return + loss + break ≤ original allocation)

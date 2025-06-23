@@ -171,8 +171,98 @@ export function JobDetailSheet({
         notes: job.qcData?.notes || "",
         passed: job.qcData?.passed === undefined ? null : job.qcData.passed,
       })
+
+      // Console logging for QC data loading tracking
+      console.log("🔍 QC LOADING - Job data loading, checking for existing QC usage details")
+      console.log("🔍 QC LOADING - Job QC data:", job.qcData)
+      
+      // Step 4: Populate QC usage details with clientIds (following stone/diamond patterns)
+      if (job.qcData) {
+        // Populate gold usage details
+        if (job.qcData.goldUsageDetails && job.qcData.goldUsageDetails.length > 0) {
+          console.log("🔍 QC LOADING - Loading existing gold usage details:", job.qcData.goldUsageDetails)
+          setGoldUsageDetails(
+            job.qcData.goldUsageDetails.map(detail => ({
+              ...detail,
+              clientId: generateAllocationClientID()
+            }))
+          )
+        } else {
+          console.log("🔍 QC LOADING - No existing gold usage details, using default empty row")
+          setGoldUsageDetails([{ 
+            clientId: generateAllocationClientID(), 
+            description: "", 
+            grossWeight: 0, 
+            scrapWeight: 0 
+          }])
+        }
+        
+        // Populate diamond usage details
+        if (job.qcData.diamondUsageDetails && job.qcData.diamondUsageDetails.length > 0) {
+          console.log("🔍 QC LOADING - Loading existing diamond usage details:", job.qcData.diamondUsageDetails)
+          setDiamondUsageDetails(
+            job.qcData.diamondUsageDetails.map(detail => ({
+              ...detail,
+              clientId: generateAllocationClientID()
+            }))
+          )
+        } else {
+          console.log("🔍 QC LOADING - No existing diamond usage details, using default empty row")
+          setDiamondUsageDetails([{ 
+            clientId: generateAllocationClientID(), 
+            type: "", 
+            returnQuantity: 0, 
+            returnWeight: 0, 
+            lossQuantity: 0, 
+            lossWeight: 0, 
+            breakQuantity: 0, 
+            breakWeight: 0 
+          }])
+        }
+        
+        // Populate colored stone usage details
+        if (job.qcData.coloredStoneUsageDetails && job.qcData.coloredStoneUsageDetails.length > 0) {
+          console.log("🔍 QC LOADING - Loading existing colored stone usage details:", job.qcData.coloredStoneUsageDetails)
+          setColoredStoneUsageDetails(
+            job.qcData.coloredStoneUsageDetails.map(detail => ({
+              ...detail,
+              clientId: generateAllocationClientID()
+            }))
+          )
+        } else {
+          console.log("🔍 QC LOADING - No existing colored stone usage details, using default empty row")
+          setColoredStoneUsageDetails([{ 
+            clientId: generateAllocationClientID(), 
+            type: "", 
+            returnQuantity: 0, 
+            returnWeight: 0, 
+            lossQuantity: 0, 
+            lossWeight: 0, 
+            breakQuantity: 0, 
+            breakWeight: 0 
+          }])
+        }
+      } else {
+        console.log("🔍 QC LOADING - No existing QC data, using default empty rows for all usage details")
+      }
     }
   }, [job])
+
+  // Part 3.1: Console logging for Complete tab QC usage details display
+  useEffect(() => {
+    if (job?.qcData && currentPhase === JOB_PHASE.COMPLETE) {
+      console.log("🔍 COMPLETE TAB - Displaying QC usage details:", {
+        hasGoldUsage: !!job.qcData.goldUsageDetails?.length,
+        goldUsageCount: job.qcData.goldUsageDetails?.length || 0,
+        hasDiamondUsage: !!job.qcData.diamondUsageDetails?.length,
+        diamondUsageCount: job.qcData.diamondUsageDetails?.length || 0,
+        hasStoneUsage: !!job.qcData.coloredStoneUsageDetails?.length,
+        stoneUsageCount: job.qcData.coloredStoneUsageDetails?.length || 0,
+        qcResult: job.qcData.passed,
+        hasNotes: !!job.qcData.notes
+      })
+    }
+  }, [job?.qcData, currentPhase])
 
   // Fetch Stone Lots
   useEffect(() => {
@@ -677,9 +767,14 @@ export function JobDetailSheet({
   }
 
   const handleGoldUsageChange = (index: number, field: string, value: any) => {
+    // Console logging for type safety verification
+    console.log("🔍 QC CHANGE - Gold usage change handler called:", { index, field, value })
+    console.log("🔍 QC CHANGE - Current gold usage details structure:", goldUsageDetails[index])
+    
     setGoldUsageDetails((prev) => 
       prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
     )
+    // Step 5: Clear validation errors when user starts typing
     setGoldUsageErrors((prev) => ({ 
       ...prev, 
       [index]: { ...prev[index], [field]: "" } 
@@ -717,6 +812,7 @@ export function JobDetailSheet({
     setDiamondUsageDetails((prev) => 
       prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
     )
+    // Step 5: Clear validation errors when user starts typing
     setDiamondUsageErrors((prev) => ({ 
       ...prev, 
       [index]: { ...prev[index], [field]: "" } 
@@ -754,10 +850,99 @@ export function JobDetailSheet({
     setColoredStoneUsageDetails((prev) => 
       prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
     )
+    // Step 5: Clear validation errors when user starts typing
     setColoredStoneUsageErrors((prev) => ({ 
       ...prev, 
       [index]: { ...prev[index], [field]: "" } 
     }))
+  }
+
+  // QC Usage Details Validation (Step 5 Implementation)
+  const validateQCUsageDetails = () => {
+    // Console logging for validation tracking
+    console.log("🔍 QC VALIDATION - Starting QC usage details validation")
+    console.log("🔍 QC VALIDATION - Gold usage details:", goldUsageDetails)
+    console.log("🔍 QC VALIDATION - Diamond usage details:", diamondUsageDetails)
+    console.log("🔍 QC VALIDATION - Colored stone usage details:", coloredStoneUsageDetails)
+    
+    const errors: any = {}
+    let isValid = true
+    
+    // Validate gold usage details
+    goldUsageDetails.forEach((detail, index) => {
+      const rowErrors: { [field: string]: string } = {}
+      
+      if (!detail.description || detail.description.trim() === "") {
+        rowErrors.description = "Gold type is required"
+        isValid = false
+      }
+      
+      if (Number(detail.grossWeight) < 0) {
+        rowErrors.grossWeight = "Gross weight must be non-negative"
+        isValid = false
+      }
+      
+      if (Number(detail.scrapWeight) < 0) {
+        rowErrors.scrapWeight = "Scrap weight must be non-negative"
+        isValid = false
+      }
+      
+      if (Object.keys(rowErrors).length > 0) {
+        errors[`gold_${index}`] = rowErrors
+      }
+    })
+    
+    // Validate diamond usage details
+    diamondUsageDetails.forEach((detail, index) => {
+      const rowErrors: { [field: string]: string } = {}
+      
+      if (!detail.type || detail.type.trim() === "") {
+        rowErrors.type = "Diamond lot is required"
+        isValid = false
+      }
+      
+      // Validate numeric fields are non-negative
+      const numericFields = ['returnQuantity', 'returnWeight', 'lossQuantity', 'lossWeight', 'breakQuantity', 'breakWeight']
+      numericFields.forEach(field => {
+        if (Number(detail[field]) < 0) {
+          rowErrors[field] = `${field.replace(/([A-Z])/g, ' $1').toLowerCase()} must be non-negative`
+          isValid = false
+        }
+      })
+      
+      if (Object.keys(rowErrors).length > 0) {
+        errors[`diamond_${index}`] = rowErrors
+      }
+    })
+    
+    // Validate colored stone usage details
+    coloredStoneUsageDetails.forEach((detail, index) => {
+      const rowErrors: { [field: string]: string } = {}
+      
+      if (!detail.type || detail.type.trim() === "") {
+        rowErrors.type = "Stone lot is required"
+        isValid = false
+      }
+      
+      // Validate numeric fields are non-negative
+      const numericFields = ['returnQuantity', 'returnWeight', 'lossQuantity', 'lossWeight', 'breakQuantity', 'breakWeight']
+      numericFields.forEach(field => {
+        if (Number(detail[field]) < 0) {
+          rowErrors[field] = `${field.replace(/([A-Z])/g, ' $1').toLowerCase()} must be non-negative`
+          isValid = false
+        }
+      })
+      
+      if (Object.keys(rowErrors).length > 0) {
+        errors[`coloredStone_${index}`] = rowErrors
+      }
+    })
+    
+    // Console logging for validation results
+    console.log("🔍 QC VALIDATION - Validation completed:", { isValid, errorCount: Object.keys(errors).length })
+    console.log("🔍 QC VALIDATION - Validation errors:", errors)
+    
+    return { isValid, errors }
   }
 
   // Other Phase Handlers (Manufacturer, QC, Complete Job) - Largely unchanged but ensure they use job!.id
@@ -794,14 +979,81 @@ export function JobDetailSheet({
 
   const handleCompleteQC = async (passed: boolean) => {
     logger.info("JobDetailSheet: handleCompleteQC called", { passed, qcData })
+    // Console logging for QC data submission tracking
+    console.log("🔍 QC SUBMISSION - Starting QC completion process with result:", passed ? "PASSED" : "FAILED")
+    console.log("🔍 QC SUBMISSION - Current QC notes and status:", qcData)
+    console.log("🔍 QC SUBMISSION - Gold usage details to submit:", goldUsageDetails)
+    console.log("🔍 QC SUBMISSION - Diamond usage details to submit:", diamondUsageDetails)
+    console.log("🔍 QC SUBMISSION - Colored stone usage details to submit:", coloredStoneUsageDetails)
+    
     setQCError(null)
+    
+    // Step 5: Validate QC usage details before submission
+    const validationResult = validateQCUsageDetails()
+    if (!validationResult.isValid) {
+      console.log("🔍 QC VALIDATION - Validation failed, showing errors to user")
+      setQCError("Please correct the errors in usage details before completing QC.")
+      // Step 6: Set individual field errors for display (Error Display Integration)
+      console.log("🔍 QC ERROR DISPLAY - Setting gold usage validation errors for UI display")
+      setGoldUsageErrors(prev => ({
+        ...prev,
+        ...Object.keys(validationResult.errors)
+          .filter(key => key.startsWith('gold_'))
+          .reduce((acc, key) => {
+            const index = key.split('_')[1]
+            acc[index] = validationResult.errors[key]
+            return acc
+          }, {} as any)
+      }))
+      console.log("🔍 QC ERROR DISPLAY - Setting diamond usage validation errors for UI display")
+      setDiamondUsageErrors(prev => ({
+        ...prev,
+        ...Object.keys(validationResult.errors)
+          .filter(key => key.startsWith('diamond_'))
+          .reduce((acc, key) => {
+            const index = key.split('_')[1]
+            acc[index] = validationResult.errors[key]
+            return acc
+          }, {} as any)
+      }))
+      console.log("🔍 QC ERROR DISPLAY - Setting colored stone usage validation errors for UI display")
+      setColoredStoneUsageErrors(prev => ({
+        ...prev,
+        ...Object.keys(validationResult.errors)
+          .filter(key => key.startsWith('coloredStone_'))
+          .reduce((acc, key) => {
+            const index = key.split('_')[1]
+            acc[index] = validationResult.errors[key]
+            return acc
+          }, {} as any)
+      }))
+      return
+    }
+    
+    console.log("🔍 QC VALIDATION - Validation passed, proceeding with QC completion")
     setIsSubmittingQC(true)
     try {
-      const result = await updateJobPhase(job!.id, JOB_PHASE.QUALITY_CHECK, {
+      // Create extended payload with usage details (following stone/diamond patterns)
+      const qcDataPayload = {
         passed: passed,
         notes: qcData.notes || "",
-      })
+        // Add new usage details, removing clientId fields
+        goldUsageDetails: goldUsageDetails.map(({ clientId, ...rest }) => rest),
+        diamondUsageDetails: diamondUsageDetails.map(({ clientId, ...rest }) => rest),
+        coloredStoneUsageDetails: coloredStoneUsageDetails.map(({ clientId, ...rest }) => rest),
+      }
+      
+      // Console logging for payload verification
+      console.log("🔍 QC PAYLOAD - Extended QC payload being sent to backend:", qcDataPayload)
+      console.log("🔍 QC PAYLOAD - Payload size estimate:", JSON.stringify(qcDataPayload).length, "characters")
+      
+      const result = await updateJobPhase(job!.id, JOB_PHASE.QUALITY_CHECK, qcDataPayload)
       if (!result.success) throw new Error(result.error || "Failed to update job phase")
+      
+      // Console logging for successful QC data save
+      console.log("🔍 QC SUCCESS - QC data successfully saved to backend!")
+      console.log("🔍 QC SUCCESS - Backend response:", result)
+      
       setJobStatus(result.newStatus!)
       setCurrentPhase(result.newPhase!)
       setQcData((prev) => ({ ...prev, passed })) // Update local QC passed state
@@ -1241,6 +1493,7 @@ export function JobDetailSheet({
                           <div>Scrap Weight (gm)</div>
                           <div></div>
                         </div>
+                        {/* Step 6: Error Display Integration - validation errors are passed to each usage row component */}
                         {goldUsageDetails.map((usage, index) => (
                           <GoldUsageRow
                             key={usage.clientId}
@@ -1283,6 +1536,7 @@ export function JobDetailSheet({
                           <div>Break Wt (Cts)</div>
                           <div></div>
                         </div>
+                        {/* Step 6: Error Display Integration - diamond usage validation errors */}
                         {diamondUsageDetails.map((usage, index) => (
                           <DiamondUsageRow
                             key={usage.clientId}
@@ -1327,6 +1581,7 @@ export function JobDetailSheet({
                           <div>Break Wt (Cts)</div>
                           <div></div>
                         </div>
+                        {/* Step 6: Error Display Integration - colored stone usage validation errors */}
                         {coloredStoneUsageDetails.map((usage, index) => (
                           <ColoredStoneUsageRow
                             key={usage.clientId}
@@ -1359,15 +1614,15 @@ export function JobDetailSheet({
 
                       {/* Quality Check Notes Section */}
                       <div className="space-y-2">
-                        <Label htmlFor="qcNotes">Quality Check Notes</Label>
-                        <Textarea
-                          id="qcNotes"
-                          value={qcData.notes}
-                          onChange={(e) => setQcData({ ...qcData, notes: e.target.value })}
-                          disabled={currentPhase !== JOB_PHASE.QUALITY_CHECK || isSubmittingQC}
-                          placeholder="Enter any notes about the quality check..."
-                        />
-                      </div>
+                          <Label htmlFor="qcNotes">Quality Check Notes</Label>
+                          <Textarea
+                            id="qcNotes"
+                            value={qcData.notes}
+                            onChange={(e) => setQcData({ ...qcData, notes: e.target.value })}
+                            disabled={currentPhase !== JOB_PHASE.QUALITY_CHECK || isSubmittingQC}
+                            placeholder="Enter any notes about the quality check..."
+                          />
+                        </div>
 
                       {/* Actions */}
                       <Separator />
@@ -1464,14 +1719,59 @@ export function JobDetailSheet({
                           <div>
                             <h3 className="font-medium mb-1">Quality Check</h3>
                             <div className="text-sm text-muted-foreground">
-                              {job.qcData?.weight ? (
+                              {job.qcData ? (
                                 <>
                                   <p>
                                     Result:{" "}
-                                    {job.qcData.passed === null ? "Pending" : job.qcData.passed ? "PASSED" : "FAILED"}
+                                    <span className={job.qcData.passed ? "text-green-600 font-medium" : job.qcData.passed === false ? "text-red-600 font-medium" : ""}>
+                                      {job.qcData.passed === null ? "Pending" : job.qcData.passed ? "PASSED" : "FAILED"}
+                                    </span>
                                   </p>
-                                  <p>Measured Weight: {job.qcData.weight}g</p>
-                                  {job.qcData.notes && <p>Notes: {job.qcData.notes}</p>}
+                                  
+                                  {/* Gold Usage Summary */}
+                                  {job.qcData.goldUsageDetails && job.qcData.goldUsageDetails.length > 0 && (
+                                    <div className="mt-2">
+                                      <p className="font-medium text-xs text-muted-foreground mb-1">Gold Usage:</p>
+                                      {job.qcData.goldUsageDetails.map((gold, idx) => (
+                                        <p key={idx} className="text-xs ml-2">
+                                          {gold.description}: {gold.grossWeight}gm gross, {gold.scrapWeight}gm scrap
+                                        </p>
+                                      ))}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Diamond Usage Summary */}
+                                  {job.qcData.diamondUsageDetails && job.qcData.diamondUsageDetails.length > 0 && (
+                                    <div className="mt-2">
+                                      <p className="font-medium text-xs text-muted-foreground mb-1">Diamond Usage:</p>
+                                      {job.qcData.diamondUsageDetails.map((diamond, idx) => (
+                                        <p key={idx} className="text-xs ml-2">
+                                          {diamond.type}: R:{diamond.returnQuantity}pcs/{diamond.returnWeight}ct, 
+                                          L:{diamond.lossQuantity}pcs/{diamond.lossWeight}ct, 
+                                          B:{diamond.breakQuantity}pcs/{diamond.breakWeight}ct
+                                        </p>
+                                      ))}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Colored Stone Usage Summary */}
+                                  {job.qcData.coloredStoneUsageDetails && job.qcData.coloredStoneUsageDetails.length > 0 && (
+                                    <div className="mt-2">
+                                      <p className="font-medium text-xs text-muted-foreground mb-1">Stone Usage:</p>
+                                      {job.qcData.coloredStoneUsageDetails.map((stone, idx) => (
+                                        <p key={idx} className="text-xs ml-2">
+                                          {stone.type}: R:{stone.returnQuantity}pcs/{stone.returnWeight}ct, 
+                                          L:{stone.lossQuantity}pcs/{stone.lossWeight}ct, 
+                                          B:{stone.breakQuantity}pcs/{stone.breakWeight}ct
+                                        </p>
+                                      ))}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Legacy weight field for backward compatibility */}
+                                  {job.qcData.weight && <p>Measured Weight: {job.qcData.weight}g</p>}
+                                  
+                                  {job.qcData.notes && <p className="mt-1">Notes: {job.qcData.notes}</p>}
                                 </>
                               ) : (
                                 <p>Not completed</p>
