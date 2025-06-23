@@ -17,7 +17,7 @@ interface GoldUsageDetail {
 interface GoldUsageRowProps {
   index: number
   usage: GoldUsageDetail
-  onChange: (index: number, field: string, value: any) => void
+  onChange: (index: number, field: string, value: string | number) => void
   onDelete: (index: number) => void
   isSubmitting: boolean
   validationErrors: { [field: string]: string }
@@ -67,7 +67,7 @@ export default function GoldUsageRow({
           min="0"
           placeholder="0.00"
           value={usage.grossWeight || ""}
-          onChange={(e) => onChange(index, "grossWeight", Number(e.target.value) || 0)}
+          onChange={(e) => onChange(index, "grossWeight", e.target.value === "" ? "" : Number(e.target.value))}
           disabled={isSubmitting}
           className={cn(validationErrors.grossWeight && "border-red-500")}
         />
@@ -84,7 +84,7 @@ export default function GoldUsageRow({
           min="0"
           placeholder="0.00"
           value={usage.scrapWeight || ""}
-          onChange={(e) => onChange(index, "scrapWeight", Number(e.target.value) || 0)}
+          onChange={(e) => onChange(index, "scrapWeight", e.target.value === "" ? "" : Number(e.target.value))}
           disabled={isSubmitting}
           className={cn(validationErrors.scrapWeight && "border-red-500")}
         />
