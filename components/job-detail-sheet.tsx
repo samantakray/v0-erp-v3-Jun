@@ -16,12 +16,16 @@ import { StickerPreview } from "@/components/sticker-preview"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { updateJobPhase } from "@/app/actions/job-actions"
 import { JOB_STATUS, JOB_PHASE } from "@/constants/job-workflow"
+import { GOLD_TYPE } from "@/constants/categories"
 import { logger } from "@/lib/logger"
 import { fetchStoneLots, fetchDiamondLots } from "@/lib/api-service" // Added fetchDiamondLots
 import { generateAllocationClientID } from "@/lib/utils"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import StoneAllocationRow from "@/components/stone-allocation-row"
 import DiamondAllocationRow from "@/components/diamond-allocation-row" // Import the new component
+import GoldUsageRow from "@/components/gold-usage-row"
+import DiamondUsageRow from "@/components/diamond-usage-row"
+import ColoredStoneUsageRow from "@/components/colored-stone-usage-row"
 import type { Job, StoneLotData, StoneAllocation, DiamondLotData, DiamondAllocation } from "@/types" // Added Diamond types
 import type { JobPhase } from "@/constants/job-workflow" // Declare the JobPhase variable
 //import { generateClientId } from "@/lib/client-id-generator"
@@ -83,10 +87,50 @@ export function JobDetailSheet({
     expectedCompletion: job?.manufacturerData?.expectedCompletionDate || job?.productionDate || "",
   })
   const [qcData, setQcData] = useState({
-    measuredWeight: job?.qcData?.weight || "",
     notes: job?.qcData?.notes || "",
     passed: job?.qcData?.passed === undefined ? null : job.qcData.passed,
   })
+
+  // QC Usage Details State
+  const [goldUsageDetails, setGoldUsageDetails] = useState([
+    { 
+      clientId: generateAllocationClientID(), 
+      description: "", 
+      grossWeight: 0, 
+      scrapWeight: 0 
+    }
+  ])
+  const [goldUsageErrors, setGoldUsageErrors] = useState({})
+
+  const [diamondUsageDetails, setDiamondUsageDetails] = useState([
+    { 
+      clientId: generateAllocationClientID(), 
+      type: "", 
+      returnQuantity: 0, 
+      returnWeight: 0, 
+      lossQuantity: 0, 
+      lossWeight: 0, 
+      breakQuantity: 0, 
+      breakWeight: 0 
+    }
+  ])
+  const [diamondUsageErrors, setDiamondUsageErrors] = useState({})
+
+  const [coloredStoneUsageDetails, setColoredStoneUsageDetails] = useState([
+    { 
+      clientId: generateAllocationClientID(), 
+      type: "", 
+      returnQuantity: 0, 
+      returnWeight: 0, 
+      lossQuantity: 0, 
+      lossWeight: 0, 
+      breakQuantity: 0, 
+      breakWeight: 0 
+    }
+  ])
+  const [coloredStoneUsageErrors, setColoredStoneUsageErrors] = useState({})
+  
+
   const [manufacturerError, setManufacturerError] = useState<string | null>(null)
   const [qcError, setQCError] = useState<string | null>(null)
   const [completeError, setCompleteError] = useState<string | null>(null)
@@ -121,10 +165,9 @@ export function JobDetailSheet({
 
       setManufacturerData({
         manufacturerId: job.manufacturerData?.id || "",
-        expectedCompletion: job.manufacturerData?.expectedCompletionDate || job.productionDate || "",
+        expectedCompletion: job.manufacturerData?.expectedCompletionDate || job?.productionDate || "",
       })
       setQcData({
-        measuredWeight: job.qcData?.weight || "",
         notes: job.qcData?.notes || "",
         passed: job.qcData?.passed === undefined ? null : job.qcData.passed,
       })
@@ -134,7 +177,7 @@ export function JobDetailSheet({
   // Fetch Stone Lots
   useEffect(() => {
     async function loadStoneLots() {
-      if (!open || (currentPhase !== JOB_PHASE.STONE && !job?.stoneData)) return // Fetch if stone phase or if stone data exists for review
+      if (!open || (currentPhase !== JOB_PHASE.STONE && currentPhase !== JOB_PHASE.QUALITY_CHECK && !job?.stoneData)) return // Fetch if stone phase, QC phase, or if stone data exists for review
       logger.debug("JobDetailSheet: loadStoneLots called", { open, currentPhase, jobId: job?.id })
       setStoneLotsLoading(true)
       try {
@@ -168,7 +211,7 @@ export function JobDetailSheet({
   // Fetch Diamond Lots
   useEffect(() => {
     async function loadDiamondLots() {
-      if (!open || (currentPhase !== JOB_PHASE.DIAMOND && !job?.diamondData)) return
+      if (!open || (currentPhase !== JOB_PHASE.DIAMOND && currentPhase !== JOB_PHASE.QUALITY_CHECK && !job?.diamondData)) return
       logger.debug("JobDetailSheet: loadDiamondLots called", { open, currentPhase, jobId: job?.id })
       setDiamondLotsLoading(true)
       try {
@@ -480,6 +523,47 @@ export function JobDetailSheet({
     [diamondAllocations],
   )
 
+  // QC Usage Details Totals
+  const totalGoldGrossWeight = useMemo(
+    () => goldUsageDetails.reduce((sum, item) => sum + (Number(item.grossWeight) || 0), 0),
+    [goldUsageDetails]
+  )
+
+  const totalGoldScrapWeight = useMemo(
+    () => goldUsageDetails.reduce((sum, item) => sum + (Number(item.scrapWeight) || 0), 0),
+    [goldUsageDetails]
+  )
+
+  const totalDiamondReturn = useMemo(() => ({
+    quantity: diamondUsageDetails.reduce((sum, item) => sum + (Number(item.returnQuantity) || 0), 0),
+    weight: diamondUsageDetails.reduce((sum, item) => sum + (Number(item.returnWeight) || 0), 0)
+  }), [diamondUsageDetails])
+
+  const totalDiamondLoss = useMemo(() => ({
+    quantity: diamondUsageDetails.reduce((sum, item) => sum + (Number(item.lossQuantity) || 0), 0),
+    weight: diamondUsageDetails.reduce((sum, item) => sum + (Number(item.lossWeight) || 0), 0)
+  }), [diamondUsageDetails])
+
+  const totalDiamondBreak = useMemo(() => ({
+    quantity: diamondUsageDetails.reduce((sum, item) => sum + (Number(item.breakQuantity) || 0), 0),
+    weight: diamondUsageDetails.reduce((sum, item) => sum + (Number(item.breakWeight) || 0), 0)
+  }), [diamondUsageDetails])
+
+  const totalColoredStoneReturn = useMemo(() => ({
+    quantity: coloredStoneUsageDetails.reduce((sum, item) => sum + (Number(item.returnQuantity) || 0), 0),
+    weight: coloredStoneUsageDetails.reduce((sum, item) => sum + (Number(item.returnWeight) || 0), 0)
+  }), [coloredStoneUsageDetails])
+
+  const totalColoredStoneLoss = useMemo(() => ({
+    quantity: coloredStoneUsageDetails.reduce((sum, item) => sum + (Number(item.lossQuantity) || 0), 0),
+    weight: coloredStoneUsageDetails.reduce((sum, item) => sum + (Number(item.lossWeight) || 0), 0)
+  }), [coloredStoneUsageDetails])
+
+  const totalColoredStoneBreak = useMemo(() => ({
+    quantity: coloredStoneUsageDetails.reduce((sum, item) => sum + (Number(item.breakQuantity) || 0), 0),
+    weight: coloredStoneUsageDetails.reduce((sum, item) => sum + (Number(item.breakWeight) || 0), 0)
+  }), [coloredStoneUsageDetails])
+
   const validateDiamondAllocations = (): boolean => {
     logger.debug("JobDetailSheet: Validating diamond allocations", { diamondAllocations })
     const errors: { [key: string]: { [field: string]: string } } = {}
@@ -568,6 +652,114 @@ export function JobDetailSheet({
     }
   }
 
+  // QC Usage Details Handlers
+  const addGoldUsageRow = () => {
+    setGoldUsageDetails([
+      ...goldUsageDetails,
+      { 
+        clientId: generateAllocationClientID(), 
+        description: "", 
+        grossWeight: 0, 
+        scrapWeight: 0 
+      }
+    ])
+  }
+
+  const deleteGoldUsageRow = (index: number) => {
+    if (goldUsageDetails.length > 1) {
+      setGoldUsageDetails(goldUsageDetails.filter((_, i) => i !== index))
+      setGoldUsageErrors((prevErrors) => {
+        const newErrors = { ...prevErrors }
+        delete newErrors[index]
+        return newErrors
+      })
+    }
+  }
+
+  const handleGoldUsageChange = (index: number, field: string, value: any) => {
+    setGoldUsageDetails((prev) => 
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    )
+    setGoldUsageErrors((prev) => ({ 
+      ...prev, 
+      [index]: { ...prev[index], [field]: "" } 
+    }))
+  }
+
+  const addDiamondUsageRow = () => {
+    setDiamondUsageDetails([
+      ...diamondUsageDetails,
+      { 
+        clientId: generateAllocationClientID(), 
+        type: "", 
+        returnQuantity: 0, 
+        returnWeight: 0, 
+        lossQuantity: 0, 
+        lossWeight: 0, 
+        breakQuantity: 0, 
+        breakWeight: 0 
+      }
+    ])
+  }
+
+  const deleteDiamondUsageRow = (index: number) => {
+    if (diamondUsageDetails.length > 1) {
+      setDiamondUsageDetails(diamondUsageDetails.filter((_, i) => i !== index))
+      setDiamondUsageErrors((prevErrors) => {
+        const newErrors = { ...prevErrors }
+        delete newErrors[index]
+        return newErrors
+      })
+    }
+  }
+
+  const handleDiamondUsageChange = (index: number, field: string, value: any) => {
+    setDiamondUsageDetails((prev) => 
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    )
+    setDiamondUsageErrors((prev) => ({ 
+      ...prev, 
+      [index]: { ...prev[index], [field]: "" } 
+    }))
+  }
+
+  const addColoredStoneUsageRow = () => {
+    setColoredStoneUsageDetails([
+      ...coloredStoneUsageDetails,
+      { 
+        clientId: generateAllocationClientID(), 
+        type: "", 
+        returnQuantity: 0, 
+        returnWeight: 0, 
+        lossQuantity: 0, 
+        lossWeight: 0, 
+        breakQuantity: 0, 
+        breakWeight: 0 
+      }
+    ])
+  }
+
+  const deleteColoredStoneUsageRow = (index: number) => {
+    if (coloredStoneUsageDetails.length > 1) {
+      setColoredStoneUsageDetails(coloredStoneUsageDetails.filter((_, i) => i !== index))
+      setColoredStoneUsageErrors((prevErrors) => {
+        const newErrors = { ...prevErrors }
+        delete newErrors[index]
+        return newErrors
+      })
+    }
+  }
+
+  const handleColoredStoneUsageChange = (index: number, field: string, value: any) => {
+    setColoredStoneUsageDetails((prev) => 
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    )
+    setColoredStoneUsageErrors((prev) => ({ 
+      ...prev, 
+      [index]: { ...prev[index], [field]: "" } 
+    }))
+  }
+
   // Other Phase Handlers (Manufacturer, QC, Complete Job) - Largely unchanged but ensure they use job!.id
   const handleAssignManufacturer = async () => {
     logger.info("JobDetailSheet: handleAssignManufacturer called", { manufacturerData })
@@ -602,15 +794,10 @@ export function JobDetailSheet({
 
   const handleCompleteQC = async (passed: boolean) => {
     logger.info("JobDetailSheet: handleCompleteQC called", { passed, qcData })
-    if (!qcData.measuredWeight) {
-      setQCError("Please enter the measured weight.")
-      return
-    }
     setQCError(null)
     setIsSubmittingQC(true)
     try {
       const result = await updateJobPhase(job!.id, JOB_PHASE.QUALITY_CHECK, {
-        weight: Number.parseFloat(qcData.measuredWeight),
         passed: passed,
         notes: qcData.notes || "",
       })
@@ -620,7 +807,6 @@ export function JobDetailSheet({
       setQcData((prev) => ({ ...prev, passed })) // Update local QC passed state
       setStickerData({
         "QC Result": passed ? "PASSED" : "FAILED",
-        "Measured Weight": `${qcData.measuredWeight}g`,
         Notes: qcData.notes || "None",
       })
       setStickerOpen(true)
@@ -663,7 +849,7 @@ export function JobDetailSheet({
       { id: JOB_PHASE.STONE, label: "Stone" },
       { id: JOB_PHASE.DIAMOND, label: "Diamond" },
       { id: JOB_PHASE.MANUFACTURER, label: "Manufacturer" },
-      { id: JOB_PHASE.QUALITY_CHECK, label: "QC" },
+      { id: JOB_PHASE.QUALITY_CHECK, label: "QC + Received" },
       { id: JOB_PHASE.COMPLETE, label: "Complete" },
     ]
     const currentIndex = phases.findIndex((p) => p.id === currentPhase)
@@ -1037,47 +1223,159 @@ export function JobDetailSheet({
 
                     {/* Quality Check Tab */}
                     <TabsContent value={JOB_PHASE.QUALITY_CHECK} className="space-y-4">
+
                       {qcError && (
                         <Alert variant="destructive">
                           <AlertTitle>Error</AlertTitle>
                           <AlertDescription>{qcError}</AlertDescription>
                         </Alert>
                       )}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="expectedWeight">Expected Weight (g)</Label>
-                          <Input id="expectedWeight" value={job.stoneType === "None" ? "15.5" : "18.2"} disabled />
+
+                      {/* Gold Usage Details Section */}
+                      <div className="border rounded-lg p-4">
+                        <h3 className="text-md font-semibold mb-4">Gold Usage Details</h3>
+                        <div className="grid grid-cols-[0.5fr_3fr_2fr_2fr_0.5fr] gap-4 mb-2 font-medium text-sm">
+                          <div>No.</div>
+                          <div>Gold Type</div>
+                          <div>Gross Weight (gm)</div>
+                          <div>Scrap Weight (gm)</div>
+                          <div></div>
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="measuredWeight">Measured Weight (g)</Label>
-                          <Input
-                            id="measuredWeight"
-                            type="number"
-                            step="0.01"
-                            value={qcData.measuredWeight}
-                            onChange={(e) => setQcData({ ...qcData, measuredWeight: e.target.value })}
-                            disabled={currentPhase !== JOB_PHASE.QUALITY_CHECK || isSubmittingQC}
+                        {goldUsageDetails.map((usage, index) => (
+                          <GoldUsageRow
+                            key={usage.clientId}
+                            index={index}
+                            usage={usage}
+                            onChange={handleGoldUsageChange}
+                            onDelete={deleteGoldUsageRow}
+                            isSubmitting={isSubmittingQC}
+                            validationErrors={goldUsageErrors[index] || {}}
                           />
-                        </div>
-                        <div className="col-span-2 space-y-2">
-                          <Label htmlFor="qcNotes">Quality Check Notes</Label>
-                          <Textarea
-                            id="qcNotes"
-                            value={qcData.notes}
-                            onChange={(e) => setQcData({ ...qcData, notes: e.target.value })}
-                            disabled={currentPhase !== JOB_PHASE.QUALITY_CHECK || isSubmittingQC}
-                            placeholder="Enter any notes about the quality check..."
-                          />
+                        ))}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={addGoldUsageRow}
+                          className="mt-4"
+                          disabled={isSubmittingQC}
+                        >
+                          <PlusCircle className="mr-2 h-4 w-4" /> Add Gold Usage Details
+                        </Button>
+                        <Separator className="my-4" />
+                        <div className="flex justify-end gap-8 text-sm font-semibold">
+                          <div>Total Gross Weight: {totalGoldGrossWeight.toFixed(2)} gm</div>
+                          <div>Total Scrap Weight: {totalGoldScrapWeight.toFixed(2)} gm</div>
                         </div>
                       </div>
+
+                      {/* Diamond Usage Details Section */}
+                      <div className="border rounded-lg p-4">
+                        <h3 className="text-md font-semibold mb-4">Diamond Usage Details</h3>
+                        <div className="grid grid-cols-[0.5fr_2fr_1.5fr_1.5fr_1.5fr_1.5fr_1.5fr_1.5fr_0.5fr] gap-4 mb-2 font-medium text-sm">
+                          <div>No.</div>
+                          <div>Type</div>
+                          <div>Return Qty (Pcs)</div>
+                          <div>Return Wt (Cts)</div>
+                          <div>Loss Qty (Pcs)</div>
+                          <div>Loss Wt (Cts)</div>
+                          <div>Break Qty (Pcs)</div>
+                          <div>Break Wt (Cts)</div>
+                          <div></div>
+                        </div>
+                        {diamondUsageDetails.map((usage, index) => (
+                          <DiamondUsageRow
+                            key={usage.clientId}
+                            index={index}
+                            usage={usage}
+                            diamondLots={diamondLots}
+                            onChange={handleDiamondUsageChange}
+                            onDelete={deleteDiamondUsageRow}
+                            isSubmitting={isSubmittingQC}
+                            validationErrors={diamondUsageErrors[index] || {}}
+                          />
+                        ))}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={addDiamondUsageRow}
+                          className="mt-4"
+                          disabled={isSubmittingQC}
+                        >
+                          <PlusCircle className="mr-2 h-4 w-4" /> Add Diamond Usage Details
+                        </Button>
+                        <Separator className="my-4" />
+                        <div className="flex justify-end gap-8 text-sm font-semibold">
+                          <div>Return: {totalDiamondReturn.quantity} Pcs, {totalDiamondReturn.weight.toFixed(2)} Cts</div>
+                          <div>Loss: {totalDiamondLoss.quantity} Pcs, {totalDiamondLoss.weight.toFixed(2)} Cts</div>
+                          <div>Break: {totalDiamondBreak.quantity} Pcs, {totalDiamondBreak.weight.toFixed(2)} Cts</div>
+                        </div>
+                      </div>
+
+                      {/* Colored Stone Usage Details Section */}
+                      <div className="border rounded-lg p-4">
+                        <h3 className="text-md font-semibold mb-4">Colored Stone Usage Details</h3>
+                        <div className="grid grid-cols-[0.5fr_2fr_1.5fr_1.5fr_1.5fr_1.5fr_1.5fr_1.5fr_0.5fr] gap-4 mb-2 font-medium text-sm">
+                          <div>No.</div>
+                          <div>Type</div>
+                          <div>Return Qty (Pcs)</div>
+                          <div>Return Wt (Cts)</div>
+                          <div>Loss Qty (Pcs)</div>
+                          <div>Loss Wt (Cts)</div>
+                          <div>Break Qty (Pcs)</div>
+                          <div>Break Wt (Cts)</div>
+                          <div></div>
+                        </div>
+                        {coloredStoneUsageDetails.map((usage, index) => (
+                          <ColoredStoneUsageRow
+                            key={usage.clientId}
+                            index={index}
+                            usage={usage}
+                            stoneLots={stoneLots}
+                            onChange={handleColoredStoneUsageChange}
+                            onDelete={deleteColoredStoneUsageRow}
+                            isSubmitting={isSubmittingQC}
+                            validationErrors={coloredStoneUsageErrors[index] || {}}
+                          />
+                        ))}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={addColoredStoneUsageRow}
+                          className="mt-4"
+                          disabled={isSubmittingQC}
+                        >
+                          <PlusCircle className="mr-2 h-4 w-4" /> Add Colored Stone Usage Details
+                        </Button>
+                        <Separator className="my-4" />
+                        <div className="flex justify-end gap-8 text-sm font-semibold">
+                          <div>Return: {totalColoredStoneReturn.quantity} Pcs, {totalColoredStoneReturn.weight.toFixed(2)} Cts</div>
+                          <div>Loss: {totalColoredStoneLoss.quantity} Pcs, {totalColoredStoneLoss.weight.toFixed(2)} Cts</div>
+                          <div>Break: {totalColoredStoneBreak.quantity} Pcs, {totalColoredStoneBreak.weight.toFixed(2)} Cts</div>
+                        </div>
+                      </div>
+
+                      {/* Quality Check Notes Section */}
+                      <div className="space-y-2">
+                        <Label htmlFor="qcNotes">Quality Check Notes</Label>
+                        <Textarea
+                          id="qcNotes"
+                          value={qcData.notes}
+                          onChange={(e) => setQcData({ ...qcData, notes: e.target.value })}
+                          disabled={currentPhase !== JOB_PHASE.QUALITY_CHECK || isSubmittingQC}
+                          placeholder="Enter any notes about the quality check..."
+                        />
+                      </div>
+
+                      {/* Actions */}
                       <Separator />
                       <div className="flex justify-between">
                         <Button
                           variant="destructive"
                           onClick={() => handleCompleteQC(false)}
-                          disabled={
-                            currentPhase !== JOB_PHASE.QUALITY_CHECK || isSubmittingQC || !qcData.measuredWeight
-                          }
+                          disabled={currentPhase !== JOB_PHASE.QUALITY_CHECK || isSubmittingQC}
                         >
                           {isSubmittingQC && qcData.passed === false ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1089,9 +1387,7 @@ export function JobDetailSheet({
                         <Button
                           variant="default"
                           onClick={() => handleCompleteQC(true)}
-                          disabled={
-                            currentPhase !== JOB_PHASE.QUALITY_CHECK || isSubmittingQC || !qcData.measuredWeight
-                          }
+                          disabled={currentPhase !== JOB_PHASE.QUALITY_CHECK || isSubmittingQC}
                         >
                           {isSubmittingQC && qcData.passed === true ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
