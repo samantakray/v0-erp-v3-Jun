@@ -785,7 +785,7 @@ export function JobDetailSheet({
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Job Work Stickers</CardTitle>
+                  <CardTitle>Job Work Phase</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Tabs value={currentPhase} onValueChange={(value) => setCurrentPhase(value as JobPhase)}>
