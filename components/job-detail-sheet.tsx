@@ -80,7 +80,7 @@ export function JobDetailSheet({
   // Other Phases State
   const [manufacturerData, setManufacturerData] = useState({
     manufacturerId: job?.manufacturerData?.id || "",
-    expectedCompletion: job?.manufacturerData?.expectedCompletionDate || "",
+    expectedCompletion: job?.manufacturerData?.expectedCompletionDate || job?.productionDate || "",
   })
   const [qcData, setQcData] = useState({
     measuredWeight: job?.qcData?.weight || "",
@@ -121,7 +121,7 @@ export function JobDetailSheet({
 
       setManufacturerData({
         manufacturerId: job.manufacturerData?.id || "",
-        expectedCompletion: job.manufacturerData?.expectedCompletionDate || "",
+        expectedCompletion: job.manufacturerData?.expectedCompletionDate || job.productionDate || "",
       })
       setQcData({
         measuredWeight: job.qcData?.weight || "",
