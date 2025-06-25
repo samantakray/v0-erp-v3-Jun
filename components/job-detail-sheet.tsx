@@ -1134,7 +1134,7 @@ export function JobDetailSheet({
     <>
       <div className="fixed inset-0 z-50 bg-background">
         <div className="flex flex-col h-full">
-          <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-muted/40 px-6 sticky top-0 z-10">
+          <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-6 sticky top-0 z-10">
             <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
               <ArrowLeft className="h-4 w-4" />
               <span className="sr-only">Back</span>

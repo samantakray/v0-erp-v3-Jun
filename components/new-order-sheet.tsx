@@ -751,8 +751,8 @@ export function NewOrderSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        {/* Width of new order form */}
-        <SheetContent className="w-full sm:max-w-xl md:max-w-2xl lg:max-w-4xl xl:max-w-5xl overflow-y-auto">
+        {/* Width of new order form - matches sidebar layout */}
+        <SheetContent className="w-full sm:max-w-xl md:w-[calc(100vw-240px)] md:max-w-none lg:w-[calc(100vw-240px)] xl:w-[calc(100vw-240px)] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{editOrder ? "Edit Order" : "Create New Order"}</SheetTitle>
             <SheetDescription>{editOrder ? "Update order details" : "Add a new order to the system"}</SheetDescription>
@@ -934,22 +934,21 @@ export function NewOrderSheet({
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Image</TableHead>
-                          <TableHead>SKU ID</TableHead>
-                          <TableHead>Category</TableHead>
-                          <TableHead>Gold Type</TableHead>
-                          <TableHead>Size</TableHead>
-                          <TableHead>Quantity</TableHead>
-                          <TableHead>Production Date</TableHead>
-                          <TableHead>Delivery Date</TableHead>
-                          <TableHead>Remarks</TableHead>
-                          <TableHead className="text-right">Remove</TableHead>
+                          <TableHead className="w-[50px]">Image</TableHead>
+                          <TableHead className="w-[90px]">SKU ID</TableHead>
+                          <TableHead className="w-[100px]">Category</TableHead>
+                          <TableHead className="w-[80px]">Size</TableHead>
+                          <TableHead className="w-[80px]">Quantity</TableHead>
+                          <TableHead className="w-[140px]">Production Date</TableHead>
+                          <TableHead className="w-[140px]">Delivery Date</TableHead>
+                          <TableHead className="min-w-[120px]">Remarks</TableHead>
+                          <TableHead className="w-[80px] text-center">Remove</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {selectedSKUs.map((sku) => (
                           <TableRow key={sku.id}>
-                            <TableCell>
+                            <TableCell className="w-[50px]">
                               <div
                                 className="w-10 h-10 rounded-md overflow-hidden cursor-pointer"
                                 onClick={() => openImageDialog(sku.image)}
@@ -961,31 +960,31 @@ export function NewOrderSheet({
                                 />
                               </div>
                             </TableCell>
-                            <TableCell className="font-medium">{sku.id}</TableCell>
-                            <TableCell>{sku.category}</TableCell>
-                            <TableCell>{getGoldTypeAcronym(sku.goldType)}</TableCell>
-                            <TableCell>
+                            <TableCell className="w-[90px] font-semibold">{sku.id}</TableCell>
+                            <TableCell className="w-[100px]">{sku.category}</TableCell>
+                            <TableCell className="w-[80px]">
                               <Input
                                 type="text"
-                                className="w-16"
+                                className="w-full"
                                 value={sku.size || ""}
                                 onChange={(e) => updateSize(sku.id, e.target.value)}
                                 disabled={sku.category === "Earring" || isSubmitting}
                               />
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="w-[80px]">
                               <Input
                                 type="number"
                                 min="1"
-                                className="w-16"
+                                className="w-full"
                                 value={sku.quantity}
                                 onChange={(e) => updateQuantity(sku.id, e.target.value)}
                                 disabled={isSubmitting}
                               />
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="w-[140px]">
                               <Input
                                 type="date"
+                                className="w-full"
                                 value={sameDatesForAll.production ? productionDueDate : sku.individualProductionDate}
                                 onChange={(e) =>
                                   sameDatesForAll.production
@@ -1004,9 +1003,10 @@ export function NewOrderSheet({
                                 disabled={isSubmitting || sameDatesForAll.production}
                               />
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="w-[140px]">
                               <Input
                                 type="date"
+                                className="w-full"
                                 value={sameDatesForAll.delivery ? deliveryDate : sku.individualDeliveryDate}
                                 onChange={(e) =>
                                   sameDatesForAll.delivery
@@ -1025,7 +1025,7 @@ export function NewOrderSheet({
                                 disabled={isSubmitting || sameDatesForAll.delivery}
                               />
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="min-w-[120px]">
                               <Input
                                 type="text"
                                 className="w-full"
@@ -1037,7 +1037,7 @@ export function NewOrderSheet({
                                 style={{ "::placeholder": { fontSize: "0.75rem" } }}
                               />
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="w-[80px] text-center">
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -1101,11 +1101,11 @@ export function NewOrderSheet({
                             <Table>
                               <TableHeader>
                                 <TableRow>
-                                  <TableHead className="w-[60px]">Image</TableHead>
-                                  <TableHead>SKU ID</TableHead>
-                                  <TableHead>Category</TableHead>
-                                  <TableHead>Collection</TableHead>
-                                  <TableHead className="text-right">Add</TableHead>
+                                  <TableHead className="w-[50px]">Image</TableHead>
+                                  <TableHead className="w-[90px]">SKU ID</TableHead>
+                                  <TableHead className="w-[100px]">Category</TableHead>
+                                  <TableHead className="min-w-[120px]">Collection</TableHead>
+                                  <TableHead className="w-[100px] text-center">Add SKU to Order</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -1113,7 +1113,7 @@ export function NewOrderSheet({
                                   const isSelected = isSkuSelected(sku.id)
                                   return (
                                     <TableRow key={sku.id} className={isSelected ? "sku-row-selected" : ""}>
-                                      <TableCell>
+                                      <TableCell className="w-[50px]">
                                         <div
                                           className="w-8 h-8 rounded-md overflow-hidden cursor-pointer"
                                           onClick={() => openImageDialog(sku.image)}
@@ -1125,19 +1125,26 @@ export function NewOrderSheet({
                                           />
                                         </div>
                                       </TableCell>
-                                      <TableCell className="font-medium">{sku.id}</TableCell>
-                                      <TableCell>{sku.category}</TableCell>
-                                      <TableCell>{sku.collection || "-"}</TableCell>
-                                      <TableCell className="text-right">
+                                      <TableCell className="w-[90px] font-semibold">{sku.id}</TableCell>
+                                      <TableCell className="w-[100px]">{sku.category}</TableCell>
+                                      <TableCell className="min-w-[120px]">
+                                        {sku.collection ? (
+                                          <span>{sku.collection}</span>
+                                        ) : (
+                                          <span className="italic text-muted-foreground">None</span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="w-[100px] text-center">
                                         <Button
                                           type="button"
-                                          variant="ghost"
+                                          variant="outline"
                                           size="sm"
                                           onClick={() => addSKU(sku)}
                                           disabled={isSubmitting || isSelected}
+                                          className="border border-gray-300"
                                         >
-                                          <Plus className="h-4 w-4" />
-                                          <span className="sr-only">Add</span>
+                                          <Plus className="h-4 w-4 mr-1" />
+                                          Add to Order
                                         </Button>
                                       </TableCell>
                                     </TableRow>

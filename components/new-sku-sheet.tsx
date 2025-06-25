@@ -296,8 +296,8 @@ if (hasDuplicates) {
   
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      {/* Increased width for the sheet content */}
-      <SheetContent className="sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl overflow-y-auto">
+      {/* Width of new SKU form - matches sidebar layout */}
+      <SheetContent className="w-full sm:max-w-xl md:w-[calc(100vw-240px)] md:max-w-none lg:w-[calc(100vw-240px)] xl:w-[calc(100vw-240px)] overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Create New SKU</SheetTitle>
           <SheetDescription>Add a new SKU to your inventory</SheetDescription>
