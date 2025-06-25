@@ -110,7 +110,7 @@ export default function Dashboard() {
   return (
     <div className="flex min-h-screen w-full flex-col">
       <div className="flex flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-6">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-6">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Package className="h-6 w-6" />
             <span className="hidden sm:inline-block">Jewelry ERP</span>

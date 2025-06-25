@@ -751,8 +751,8 @@ export function NewOrderSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        {/* Width of new order form - matches sidebar layout */}
-        <SheetContent className="w-full sm:max-w-xl md:w-[calc(100vw-240px)] md:max-w-none lg:w-[calc(100vw-240px)] xl:w-[calc(100vw-240px)] overflow-y-auto">
+        {/* Width of new order form - matches sidebar layout with force override */}
+        <SheetContent className="w-full sm:max-w-xl md:w-[calc(100vw-240px)] md:max-w-none lg:w-[calc(100vw-240px)] xl:w-[calc(100vw-240px)] overflow-y-auto force-full-width-sheet">
           <SheetHeader>
             <SheetTitle>{editOrder ? "Edit Order" : "Create New Order"}</SheetTitle>
             <SheetDescription>{editOrder ? "Update order details" : "Add a new order to the system"}</SheetDescription>
