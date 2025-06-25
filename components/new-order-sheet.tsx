@@ -936,7 +936,7 @@ export function NewOrderSheet({
                         <TableRow>
                           <TableHead>Image</TableHead>
                           <TableHead>SKU ID</TableHead>
-                          <TableHead>Name</TableHead>
+                          <TableHead>Category</TableHead>
                           <TableHead>Gold Type</TableHead>
                           <TableHead>Size</TableHead>
                           <TableHead>Quantity</TableHead>
@@ -962,7 +962,7 @@ export function NewOrderSheet({
                               </div>
                             </TableCell>
                             <TableCell className="font-medium">{sku.id}</TableCell>
-                            <TableCell>{sku.name}</TableCell>
+                            <TableCell>{sku.category}</TableCell>
                             <TableCell>{getGoldTypeAcronym(sku.goldType)}</TableCell>
                             <TableCell>
                               <Input
@@ -1103,7 +1103,6 @@ export function NewOrderSheet({
                                 <TableRow>
                                   <TableHead className="w-[60px]">Image</TableHead>
                                   <TableHead>SKU ID</TableHead>
-                                  <TableHead>Name</TableHead>
                                   <TableHead>Category</TableHead>
                                   <TableHead>Collection</TableHead>
                                   <TableHead className="text-right">Add</TableHead>
@@ -1127,7 +1126,6 @@ export function NewOrderSheet({
                                         </div>
                                       </TableCell>
                                       <TableCell className="font-medium">{sku.id}</TableCell>
-                                      <TableCell>{sku.name}</TableCell>
                                       <TableCell>{sku.category}</TableCell>
                                       <TableCell>{sku.collection || "-"}</TableCell>
                                       <TableCell className="text-right">
@@ -1147,7 +1145,7 @@ export function NewOrderSheet({
                                 })}
                                 {filteredSKUs.length === 0 && (
                                   <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
                                       No SKUs found
                                     </TableCell>
                                   </TableRow>
