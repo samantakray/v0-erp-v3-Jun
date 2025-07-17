@@ -510,7 +510,7 @@ if (hasDuplicates) {
                           category: "None",
                           collection: lastSku.collection, // Use collection from the last SKU
                           size: 0,
-                          goldType: GOLD_TYPE.NONE, // Use goldType from the last SKU
+                          goldType: lastSku.goldType, // Use goldType from the last SKU
                           stoneType: STONE_TYPE.NONE,
                           diamondType: "",
                           weight: "",
