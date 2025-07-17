@@ -348,7 +348,7 @@ if (hasDuplicates) {
                           <TableHead>Category</TableHead>
                           <TableHead>Size</TableHead>
                           <TableHead>Gold Type</TableHead>
-                          <TableHead>Stone Type</TableHead>
+                          
                           <TableHead>Collection</TableHead>
                           <TableHead>Image</TableHead>
                           <TableHead></TableHead>
@@ -427,35 +427,7 @@ if (hasDuplicates) {
                                   </SelectContent>
                                 </Select>
                               </TableCell>
-                              <TableCell>
-                                <Select
-                                  value={sku.stoneType}
-                                  onValueChange={(value) => {
-                                    const newSkus = [...multipleSkus]
-                                    newSkus[index].stoneType = value
-                                    setMultipleSkus(newSkus)
-                                  }}
-                                >
-                                  <SelectTrigger className="w-[120px]">
-                                    <SelectValue placeholder="Stone Type" />
-                                  </SelectTrigger>
-                                  <SelectContent className="max-h-[300px]">
-                                    {/* Group stone types alphabetically */}
-                                    {Object.keys(groupedStoneTypes)
-                                      .sort()
-                                      .map((letter) => (
-                                        <div key={letter}>
-                                          <div className="px-2 py-1.5 text-xs font-semibold bg-muted/50">{letter}</div>
-                                          {groupedStoneTypes[letter].map((stoneType) => (
-                                            <SelectItem key={stoneType} value={stoneType}>
-                                              {stoneType}
-                                            </SelectItem>
-                                          ))}
-                                        </div>
-                                      ))}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
+                              
                               <TableCell>
                                 <Select
                                   value={sku.collection}
