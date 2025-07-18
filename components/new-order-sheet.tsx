@@ -454,25 +454,34 @@ export function NewOrderSheet({
 
   /**
    * Parses the bulk SKU input string into an array of SKU IDs and quantities
-   * Format expected: "SKU-001:2, SKU-002:1, SKU-003:3"
+   * Format expected: "SKU-001, SKU-001, SKU-002" (quantity is determined by occurrences)
    */
   const parseBulkSkuInput = (input) => {
     if (!input.trim()) return []
 
     try {
-      return input
+      // Split by comma, trim whitespace, and filter out empty strings
+      const skuEntries = input
         .split(",")
         .map((item) => item.trim())
         .filter((item) => item)
-        .map((item) => {
-          const [skuId, quantityStr] = item.split(":").map((part) => part.trim())
-          const quantity = Number.parseInt(quantityStr, 10)
 
-          if (!skuId) throw new Error(`Invalid SKU ID format in "${item}"`)
-          if (isNaN(quantity) || quantity <= 0) throw new Error(`Invalid quantity for SKU ${skuId}`)
+      if (skuEntries.length === 0) return []
 
-          return { skuId, quantity }
-        })
+      // Count occurrences of each SKU ID
+      const skuCounts = {}
+      for (const skuId of skuEntries) {
+        if (!skuId) {
+          throw new Error(`Invalid SKU ID format in input`)
+        }
+        skuCounts[skuId] = (skuCounts[skuId] || 0) + 1
+      }
+
+      // Convert to array of { skuId, quantity }
+      return Object.entries(skuCounts).map(([skuId, quantity]) => ({
+        skuId,
+        quantity: Number(quantity)
+      }))
     } catch (error) {
       throw new Error(`Failed to parse input: ${error.message}`)
     }
@@ -489,7 +498,7 @@ export function NewOrderSheet({
     try {
       const parsedItems = parseBulkSkuInput(bulkSkuInput)
       if (parsedItems.length === 0) {
-        setBulkAssignError("Please enter at least one SKU in the correct format")
+        setBulkAssignError("Please enter at least one valid SKU ID. Example: SKU-001, SKU-001, SKU-002")
         setIsBulkProcessing(false)
         return
       }
@@ -1190,14 +1199,14 @@ export function NewOrderSheet({
                   <TabsContent value="bulk-assign">
                     <div className="p-4 space-y-4">
                       <p className="text-sm text-muted-foreground">
-                        Quickly add multiple SKUs by entering a list of SKU IDs and quantities in the format below.
+                        Quickly add multiple SKUs by entering a list of SKU IDs. The quantity will be based on how many times each SKU appears in the list.
                       </p>
 
                       <div className="bg-muted/20 p-3 rounded-md">
-                        <p className="text-sm font-medium mb-2">Format Instructions:</p>
-                        <code className="text-xs block mb-2">SKU-001:2, SKU-002:1, SKU-003:3</code>
+                        <p className="text-sm font-medium mb-2">Format Example:</p>
+                        <code className="text-xs block mb-2">SKU-001, SKU-001, SKU-002, SKU-003</code>
                         <p className="text-xs text-muted-foreground">
-                          Enter each SKU ID followed by a colon and the quantity, separated by commas.
+                          This will add: 2x SKU-001, 1x SKU-002, and 1x SKU-003
                         </p>
                       </div>
 
@@ -1216,10 +1225,10 @@ export function NewOrderSheet({
                       )}
 
                       <div className="space-y-2">
-                        <Label htmlFor="bulkSkuInput">Enter SKU IDs and Quantities</Label>
+                        <Label htmlFor="bulkSkuInput">Enter SKU IDs (comma-separated)</Label>
                         <Textarea
                           id="bulkSkuInput"
-                          placeholder="SKU-001:2, SKU-002:1, SKU-003:3"
+                          placeholder="SKU-001, SKU-001, SKU-002, SKU-003"
                           value={bulkSkuInput}
                           onChange={(e) => setBulkSkuInput(e.target.value)}
                           className="min-h-[100px]"
