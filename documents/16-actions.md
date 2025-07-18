@@ -130,14 +130,15 @@ Gets the count of open orders (not marked as Completed or Cancelled).
 
 Updates a job's phase and status, storing phase-specific data.
 
-**Process Flow**:
+'''**Process Flow**:
 1. Fetches the job UUID using the job_id
 2. Determines the new status and next phase based on the current phase
-3. Prepares phase-specific data for storage
-4. Updates the job record
-5. Adds a job history entry
-6. Updates the parent order status based on all job statuses
-7. Revalidates relevant paths
+3. **For the Quality Check phase, validates the incoming data against a Zod schema in `lib/validation.ts`**
+4. Prepares phase-specific data for storage, **including complex nested arrays for gold, diamond, and stone usage**
+5. Updates the job record
+6. Adds a job history entry
+7. Updates the parent order status based on all job statuses
+8. Revalidates relevant paths'''
 
 **Supabase Interactions**:
 - **Tables**: `jobs`, `job_history`, `orders`

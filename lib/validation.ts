@@ -1,5 +1,55 @@
-import { supabase, createServiceClient } from "./supabaseClient"
+'''import { supabase, createServiceClient } from "./supabaseClient"
 import { logger } from "./logger"
+import { z } from "zod"
+
+// Zod Schemas for QC Data Validation
+const goldUsageDetailSchema = z.object({
+  description: z.string().min(1, "Gold description is required"),
+  grossWeight: z.number().positive("Gross weight must be positive"),
+  scrapWeight: z.number().nonnegative("Scrap weight cannot be negative"),
+});
+
+const diamondUsageDetailSchema = z.object({
+  type: z.string().min(1, "Diamond type is required"),
+  returnQuantity: z.number().nonnegative("Return quantity cannot be negative"),
+  returnWeight: z.number().nonnegative("Return weight cannot be negative"),
+  lossQuantity: z.number().nonnegative("Loss quantity cannot be negative"),
+  lossWeight: z.number().nonnegative("Loss weight cannot be negative"),
+  breakQuantity: z.number().nonnegative("Break quantity cannot be negative"),
+  breakWeight: z.number().nonnegative("Break weight cannot be negative"),
+});
+
+const coloredStoneUsageDetailSchema = z.object({
+  type: z.string().min(1, "Stone type is required"),
+  returnQuantity: z.number().nonnegative("Return quantity cannot be negative"),
+  returnWeight: z.number().nonnegative("Return weight cannot be negative"),
+  lossQuantity: z.number().nonnegative("Loss quantity cannot be negative"),
+  lossWeight: z.number().nonnegative("Loss weight cannot be negative"),
+  breakQuantity: z.number().nonnegative("Break quantity cannot be negative"),
+  breakWeight: z.number().nonnegative("Break weight cannot be negative"),
+});
+
+const qcDataSchema = z.object({
+  measuredWeight: z.number().positive("Measured weight is required and must be positive"),
+  notes: z.string().optional(),
+  passed: z.boolean(),
+  goldUsage: z.array(goldUsageDetailSchema).optional(),
+  diamondUsage: z.array(diamondUsageDetailSchema).optional(),
+  coloredStoneUsage: z.array(coloredStoneUsageDetailSchema).optional(),
+});
+
+export function validateQCData(data: any) {
+  const result = qcDataSchema.safeParse(data);
+  if (!result.success) {
+    logger.error("QC data validation failed", { error: result.error.flatten() });
+    return {
+      success: false,
+      errors: result.error.flatten().fieldErrors,
+    };
+  }
+  return { success: true, data: result.data };
+}
+
 
 // Expected table schemas - updated to match your actual schema
 const expectedSchemas = {
@@ -320,3 +370,4 @@ export async function validateSupabaseSetup() {
     return true
   }
 }
+''

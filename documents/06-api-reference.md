@@ -355,12 +355,44 @@ type ManufacturerData = {
   remarks?: string
 }
 
-// QC Data
+'''// QC Data (Validated)
 type QCData = {
-  weight: number
+  measuredWeight: number
   passed: boolean
-  notes: string
+  notes?: string
+  goldUsage?: GoldUsageDetail[]
+  diamondUsage?: DiamondUsageDetail[]
+  coloredStoneUsage?: ColoredStoneUsageDetail[]
 }
+
+// Gold Usage Detail for QC
+interface GoldUsageDetail {
+  description: string
+  grossWeight: number
+  scrapWeight: number
+}
+
+// Diamond Usage Detail for QC
+interface DiamondUsageDetail {
+  type: string // lot number
+  returnQuantity: number
+  returnWeight: number
+  lossQuantity: number
+  lossWeight: number
+  breakQuantity: number
+  breakWeight: number
+}
+
+// Colored Stone Usage Detail for QC
+interface ColoredStoneUsageDetail {
+  type: string // lot number
+  returnQuantity: number
+  returnWeight: number
+  lossQuantity: number
+  lossWeight: number
+  breakQuantity: number
+  breakWeight: number
+}'''
 \`\`\`
 
 #### `createJob(orderId: string, skuId: string, size?: string): Promise<{ success: boolean, jobId?: string, error?: string }>`

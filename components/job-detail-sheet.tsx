@@ -1724,7 +1724,7 @@ export function JobDetailSheet({
                                   <p>
                                     Result:{" "}
                                     <span className={job.qcData.passed ? "text-green-600 font-medium" : job.qcData.passed === false ? "text-red-600 font-medium" : ""}>
-                                      {job.qcData.passed === null ? "Pending" : job.qcData.passed ? "PASSED" : "FAILED"}
+                                    {job.qcData.passed === null ? "Pending" : job.qcData.passed ? "PASSED" : "FAILED"}
                                     </span>
                                   </p>
                                   
