@@ -22,7 +22,7 @@ interface DiamondUsageRowProps {
   index: number
   usage: DiamondUsageDetail
   diamondLots: DiamondLotData[]
-  onChange: (index: number, field: string, value: any) => void
+  onChange: (index: number, field: string, value: string | number) => void
   onDelete: (index: number) => void
   isSubmitting: boolean
   validationErrors: { [field: string]: string }
@@ -73,7 +73,7 @@ export default function DiamondUsageRow({
           min="0"
           placeholder="0"
           value={usage.returnQuantity || ""}
-          onChange={(e) => onChange(index, "returnQuantity", Number(e.target.value) || 0)}
+          onChange={(e) => onChange(index, "returnQuantity", e.target.value === "" ? "" : Number(e.target.value))}
           disabled={isSubmitting}
           className={cn(validationErrors.returnQuantity && "border-red-500")}
         />
@@ -90,7 +90,7 @@ export default function DiamondUsageRow({
           min="0"
           placeholder="0.00"
           value={usage.returnWeight || ""}
-          onChange={(e) => onChange(index, "returnWeight", Number(e.target.value) || 0)}
+          onChange={(e) => onChange(index, "returnWeight", e.target.value === "" ? "" : Number(e.target.value))}
           disabled={isSubmitting}
           className={cn(validationErrors.returnWeight && "border-red-500")}
         />
@@ -107,7 +107,7 @@ export default function DiamondUsageRow({
           min="0"
           placeholder="0"
           value={usage.lossQuantity || ""}
-          onChange={(e) => onChange(index, "lossQuantity", Number(e.target.value) || 0)}
+          onChange={(e) => onChange(index, "lossQuantity", e.target.value === "" ? "" : Number(e.target.value))}
           disabled={isSubmitting}
           className={cn(validationErrors.lossQuantity && "border-red-500")}
         />
@@ -124,7 +124,7 @@ export default function DiamondUsageRow({
           min="0"
           placeholder="0.00"
           value={usage.lossWeight || ""}
-          onChange={(e) => onChange(index, "lossWeight", Number(e.target.value) || 0)}
+          onChange={(e) => onChange(index, "lossWeight", e.target.value === "" ? "" : Number(e.target.value))}
           disabled={isSubmitting}
           className={cn(validationErrors.lossWeight && "border-red-500")}
         />
@@ -141,7 +141,7 @@ export default function DiamondUsageRow({
           min="0"
           placeholder="0"
           value={usage.breakQuantity || ""}
-          onChange={(e) => onChange(index, "breakQuantity", Number(e.target.value) || 0)}
+          onChange={(e) => onChange(index, "breakQuantity", e.target.value === "" ? "" : Number(e.target.value))}
           disabled={isSubmitting}
           className={cn(validationErrors.breakQuantity && "border-red-500")}
         />
@@ -158,7 +158,7 @@ export default function DiamondUsageRow({
           min="0"
           placeholder="0.00"
           value={usage.breakWeight || ""}
-          onChange={(e) => onChange(index, "breakWeight", Number(e.target.value) || 0)}
+          onChange={(e) => onChange(index, "breakWeight", e.target.value === "" ? "" : Number(e.target.value))}
           disabled={isSubmitting}
           className={cn(validationErrors.breakWeight && "border-red-500")}
         />

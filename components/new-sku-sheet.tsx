@@ -23,9 +23,157 @@ import {
 import { getNextSkuNumber, createSkuBatch, getPredictedNextSkuNumber } from "@/app/actions/sku-sequence-actions"
 import { logger } from "@/lib/logger"
 import { ImageUpload } from "@/components/image-upload"
+import React from 'react';
+
+// Memoized Table Row Component to prevent unnecessary re-renders
+const SkuTableRow = React.memo(function SkuTableRow(props) { 
+  const {
+    sku,
+    index,
+    multipleSkusLength,
+    handleSkuChange,
+    removeSku,
+    generateSkuIdPreview,
+    getSizeConstraints,
+    handleImageChange,
+    handleImageError,
+    uploadError, // Changed from uploadErrors to uploadError
+    groupedStoneTypes
+  } = props;
+  // --- Start of new debug code ---
+  const prevProps = React.useRef();
+  React.useEffect(() => {
+    if (prevProps.current) {
+      const changedProps = Object.keys(props).reduce((acc, key) => {
+        if (prevProps.current[key] !== props[key]) {
+          acc[key] = { from: prevProps.current[key], to: props[key] };
+        }
+        return acc;
+      }, {});
+      if (Object.keys(changedProps).length > 0) {
+        console.warn(`[SkuTableRow index ${index}] re-rendered because of changed props:`, changedProps);
+      }
+    }
+    prevProps.current = props;
+  });
+  // --- End of new debug code ---
+  console.log(`SkuTableRow for index ${index} (ID: ${sku.clientId}) rendered at`, new Date().toLocaleTimeString());
+  const { min, max, step, unit } = getSizeConstraints(sku.category)
+  const skuIdPreview = generateSkuIdPreview(sku.category)
+
+  return (
+    <TableRow>
+      <TableCell>{index + 1}</TableCell>
+      <TableCell className="font-mono">{skuIdPreview}</TableCell>
+      <TableCell>
+        <Select
+          value={sku.category}
+          onValueChange={(value) => {
+            handleSkuChange(index, 'category', value)
+            handleSkuChange(index, 'size', DEFAULT_SIZES[value] ?? 0)
+          }}
+        >
+          <SelectTrigger 
+            className="w-[120px]"
+            onFocus={() => console.log(`FOCUS on Category dropdown for index ${index}`)}
+          >
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.values(SKU_CATEGORY).map((category) => (
+              <SelectItem key={category} value={category}>
+                {category}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center space-x-1">
+          <Input
+            type="number"
+            min={min}
+            max={max}
+            step={step}
+            value={sku.size}
+            onChange={(e) => handleSkuChange(index, 'size', e.target.value)}
+            className="w-[80px]"
+          />
+          {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
+        </div>
+      </TableCell>
+      <TableCell>
+        <Select
+          value={sku.goldType}
+          onValueChange={(value) => handleSkuChange(index, 'goldType', value)}
+        >
+          <SelectTrigger 
+            className="w-[120px]"
+            onFocus={() => console.log(`FOCUS on Gold Type dropdown for index ${index}`)}
+          >
+            <SelectValue placeholder="Gold Type" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.values(GOLD_TYPE).map((goldType) => (
+              <SelectItem key={goldType} value={goldType}>
+                {goldType}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell>
+        <Select
+          value={sku.collection}
+          onValueChange={(value) => handleSkuChange(index, 'collection', value)}
+        >
+          <SelectTrigger 
+            className="w-[120px]"
+            onFocus={() => console.log(`FOCUS on Collection dropdown for index ${index}`)}
+          >
+            <SelectValue placeholder="Collection" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.values(COLLECTION_NAME).map((collection) => (
+              <SelectItem key={collection} value={collection}>
+                {collection}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell>
+        <div className="w-[150px]">
+          <ImageUpload
+                            value={sku.imageUrl}
+                            onChange={(url, file) => handleImageChange(url, file, index)}
+                            onError={(err) => handleImageError(err, index)}
+                            tempId={`sku-temp-${index}-${Date.now()}`}
+                            skuId={skuIdPreview !== "Generating..." ? skuIdPreview : undefined}
+                            compact={true}
+                          />
+                          {uploadError && (
+                            <p className="text-xs text-red-500 mt-1">{uploadError}</p>
+                          )}
+        </div>
+      </TableCell>
+      <TableCell>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => removeSku(index)}
+          disabled={multipleSkusLength <= 1}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </TableCell>
+    </TableRow>
+  )
+});
 
 
 export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
+  console.log("NewSKUSheet component rendered at", new Date().toLocaleTimeString());
   const [multipleSkus, setMultipleSkus] = useState([
     {
       category: "Necklace",
@@ -59,6 +207,7 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
       // Initialize with default SKU
       setMultipleSkus([
         {
+          clientId: `sku-${Date.now()}`, // Add a unique client-side ID
           category: "Necklace",
           collection: COLLECTION_NAME.NONE, // Default collection
           size: DEFAULT_SIZES["Necklace"] ?? 0, // Add fallback for missing default size
@@ -87,6 +236,23 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
     onOpenChange(newOpen)
   }
 
+  // Stable state update handlers using useCallback
+  const handleSkuChange = React.useCallback((index, field, value) => {
+    setMultipleSkus(currentSkus => {
+      const newSkus = [...currentSkus]
+      newSkus[index] = { ...newSkus[index], [field]: value }
+      return newSkus
+    })
+  }, [])
+
+  const removeSku = React.useCallback((index) => {
+    setMultipleSkus(currentSkus => {
+      const newSkus = [...currentSkus]
+      newSkus.splice(index, 1)
+      return newSkus
+    })
+  }, [])
+
   // Fetch the predicted next number from the server
   const fetchPredictedNextNumber = async () => {
     setIsLoading(true)
@@ -108,46 +274,32 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   }
 
   // Handle image URL change for a specific SKU in the set
-  const handleImageChange = (imageUrl, file, index) => {
-    // 🔍 DEBUG LOGGING - Client-side upload state tracking
-    console.log("🔍 NewSKUSheet DEBUG - Image change:", {
-      index,
-      hasUrl: !!imageUrl,
-      hasFile: !!file,
-      fileName: file?.name,
-      shouldReuseExisting: !!imageUrl,
-      willClearFile: !!imageUrl // File will be cleared if URL exists
-    })
-
-    const newSkus = [...multipleSkus]
-    newSkus[index].imageUrl = imageUrl
-    // 🔍 OPTION A IMPLEMENTATION: Clear file if URL exists (successful upload)
-    newSkus[index].imageFile = imageUrl ? null : file
-    setMultipleSkus(newSkus)
-
-    // Clear any previous error for this index
-    if (uploadErrors[index]) {
-      const newErrors = { ...uploadErrors }
-      delete newErrors[index]
-      setUploadErrors(newErrors)
-    }
-  }
+  const handleImageChange = React.useCallback((imageUrl, file, index) => {
+    setMultipleSkus(currentSkus => {
+      const newSkus = [...currentSkus];
+      newSkus[index] = { ...newSkus[index], imageUrl, imageFile: imageUrl ? null : file };
+      return newSkus;
+    });
+    setUploadErrors(currentErrors => {
+      if (!currentErrors[index]) return currentErrors;
+      const newErrors = { ...currentErrors };
+      delete newErrors[index];
+      return newErrors;
+    });
+  }, []);
 
   // Handle image upload error for a specific SKU in the set
-  const handleImageError = (error, index) => {
-    setUploadErrors((prev) => ({
-      ...prev,
-      [index]: error,
-    }))
-  }
+  const handleImageError = React.useCallback((error, index) => {
+    setUploadErrors(prev => ({ ...prev, [index]: error }));
+  }, []);
 
   // Generate SKU ID preview based on category and sequential number
-  const generateSkuIdPreview = (category) => {
+  const generateSkuIdPreview = React.useCallback((category) => {
     if (!formattedNumber) return "Generating..."
     // Use the helper function from constants/categories.ts
     const prefix = getCategoryCode(category) || "OO" // Default to "OO" if category not found
     return `${prefix}-${formattedNumber}`
-  }
+  }, [formattedNumber]);
 
   const handleCreateSkusBatch = async () => {
 
@@ -274,17 +426,18 @@ if (hasDuplicates) {
   }
 
   // Helper function to get size constraints for a category
-  const getSizeConstraints = (category) => {
+  const getSizeConstraints = React.useCallback((category) => {
     return {
       min: MIN_SIZES[category] ?? undefined,
       max: MAX_SIZES[category] ?? undefined,
       step: SIZE_DENOMINATIONS[category] ?? 1,
       unit: SIZE_UNITS[category] ?? "",
     }
-  }
+  }, []);
 
   // Group stone types for better organization in the dropdown
-  const groupedStoneTypes = Object.values(STONE_TYPE).reduce((acc, stoneType) => {
+  const groupedStoneTypes = React.useMemo(() => {
+    return Object.values(STONE_TYPE).reduce((acc, stoneType) => {
     // Simple grouping by first letter
     const firstLetter = stoneType.charAt(0).toUpperCase()
     if (!acc[firstLetter]) {
@@ -292,12 +445,12 @@ if (hasDuplicates) {
     }
     acc[firstLetter].push(stoneType)
     return acc
-  }, {})
+  }, {})}, []);
   
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      {/* Increased width for the sheet content */}
-      <SheetContent className="sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl overflow-y-auto">
+      {/* Width of new SKU form - matches sidebar layout with force override */}
+      <SheetContent className="w-full sm:max-w-xl md:w-[calc(100vw-240px)] overflow-y-auto force-full-width-sheet">
         <SheetHeader>
           <SheetTitle>Create New SKU</SheetTitle>
           <SheetDescription>Add a new SKU to your inventory</SheetDescription>
@@ -348,174 +501,29 @@ if (hasDuplicates) {
                           <TableHead>Category</TableHead>
                           <TableHead>Size</TableHead>
                           <TableHead>Gold Type</TableHead>
-                          <TableHead>Stone Type</TableHead>
+                          
                           <TableHead>Collection</TableHead>
                           <TableHead>Image</TableHead>
                           <TableHead></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {multipleSkus.map((sku, index) => {
-                          const { min, max, step, unit } = getSizeConstraints(sku.category)
-                          const hasSizeConstraints = min !== undefined && max !== undefined
-                          const skuIdPreview = generateSkuIdPreview(sku.category)
-
-                          return (
-                            <TableRow key={index}>
-                              <TableCell>{index + 1}</TableCell>
-                              <TableCell className="font-mono">{skuIdPreview}</TableCell>
-                              <TableCell>
-                                <Select
-                                  value={sku.category}
-                                  onValueChange={(value) => {
-                                    const newSkus = [...multipleSkus]
-                                    newSkus[index].category = value
-                                    newSkus[index].size = DEFAULT_SIZES[value] ?? 0 // Add fallback
-                                    setMultipleSkus(newSkus)
-                                  }}
-                                >
-                                  <SelectTrigger className="w-[120px]">
-                                    <SelectValue placeholder="Category" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {Object.values(SKU_CATEGORY).map((category) => (
-                                      <SelectItem key={category} value={category}>
-                                        {category}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-
-                              <TableCell>
-                                <div className="flex items-center space-x-1">
-                                  <Input
-                                    type="number"
-                                    min={min}
-                                    max={max}
-                                    step={step}
-                                    value={sku.size}
-                                    onChange={(e) => {
-                                      const newSkus = [...multipleSkus]
-                                      newSkus[index].size = e.target.value
-                                      setMultipleSkus(newSkus)
-                                    }}
-                                    className="w-[80px]"
-                                    //disabled={!hasSizeConstraints}
-                                  />
-                                  {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Select
-                                  value={sku.goldType}
-                                  onValueChange={(value) => {
-                                    const newSkus = [...multipleSkus]
-                                    newSkus[index].goldType = value
-                                    setMultipleSkus(newSkus)
-                                  }}
-                                >
-                                  <SelectTrigger className="w-[120px]">
-                                    <SelectValue placeholder="Gold Type" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {Object.values(GOLD_TYPE).map((goldType) => (
-                                      <SelectItem key={goldType} value={goldType}>
-                                        {goldType}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                              <TableCell>
-                                <Select
-                                  value={sku.stoneType}
-                                  onValueChange={(value) => {
-                                    const newSkus = [...multipleSkus]
-                                    newSkus[index].stoneType = value
-                                    setMultipleSkus(newSkus)
-                                  }}
-                                >
-                                  <SelectTrigger className="w-[120px]">
-                                    <SelectValue placeholder="Stone Type" />
-                                  </SelectTrigger>
-                                  <SelectContent className="max-h-[300px]">
-                                    {/* Group stone types alphabetically */}
-                                    {Object.keys(groupedStoneTypes)
-                                      .sort()
-                                      .map((letter) => (
-                                        <div key={letter}>
-                                          <div className="px-2 py-1.5 text-xs font-semibold bg-muted/50">{letter}</div>
-                                          {groupedStoneTypes[letter].map((stoneType) => (
-                                            <SelectItem key={stoneType} value={stoneType}>
-                                              {stoneType}
-                                            </SelectItem>
-                                          ))}
-                                        </div>
-                                      ))}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                              <TableCell>
-                                <Select
-                                  value={sku.collection}
-                                  onValueChange={(value) => {
-                                    const newSkus = [...multipleSkus]
-                                    newSkus[index].collection = value
-                                    setMultipleSkus(newSkus)
-                                  }}
-                                >
-                                  <SelectTrigger className="w-[120px]">
-                                    <SelectValue placeholder="Collection" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {Object.values(COLLECTION_NAME).map((collection) => (
-                                      <SelectItem key={collection} value={collection}>
-                                        {collection}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </TableCell>
-                              <TableCell>
-                                <div className="w-[150px]">
-                                  <ImageUpload
-                                    value={sku.imageUrl}
-                                    onChange={(url, file) => handleImageChange(url, file, index)}
-                                    onError={(err) => handleImageError(err, index)}
-                                    tempId={`sku-temp-${index}-${Date.now()}`}
-                                    skuId={skuIdPreview !== "Generating..." ? skuIdPreview : undefined}
-                                    compact={true}
-                                  />
-                                  {uploadErrors[index] && (
-                                    <p className="text-xs text-red-500 mt-1">{uploadErrors[index]}</p>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => {
-                                    const newSkus = [...multipleSkus]
-                                    newSkus.splice(index, 1)
-                                    setMultipleSkus(newSkus)
-
-                                    // Remove any errors for this index
-                                    if (uploadErrors[index]) {
-                                      const newErrors = { ...uploadErrors }
-                                      delete newErrors[index]
-                                      setUploadErrors(newErrors)
-                                    }
-                                  }}
-                                  disabled={multipleSkus.length <= 1}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })}
+                        {multipleSkus.map((sku, index) => (
+                          <SkuTableRow
+                            key={sku.clientId} // Use stable client-side ID for key
+                            sku={sku}
+                            index={index}
+                            multipleSkusLength={multipleSkus.length}
+                            handleSkuChange={handleSkuChange}
+                            removeSku={removeSku}
+                            generateSkuIdPreview={generateSkuIdPreview}
+                            getSizeConstraints={getSizeConstraints}
+                            handleImageChange={handleImageChange}
+                            handleImageError={handleImageError}
+                            uploadError={uploadErrors[index]} // Pass only the relevant error
+                            groupedStoneTypes={groupedStoneTypes}
+                          />
+                        ))}
                       </TableBody>
                     </Table>
                   </div>
@@ -535,10 +543,11 @@ if (hasDuplicates) {
                       setMultipleSkus([
                         ...multipleSkus,
                         {
+                          clientId: `sku-${Date.now()}`,
                           category: "None",
                           collection: lastSku.collection, // Use collection from the last SKU
                           size: 0,
-                          goldType: GOLD_TYPE.NONE, // Use goldType from the last SKU
+                          goldType: lastSku.goldType, // Use goldType from the last SKU
                           stoneType: STONE_TYPE.NONE,
                           diamondType: "",
                           weight: "",

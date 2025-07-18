@@ -242,7 +242,18 @@ export async function deleteSku(skuId: string) {
         error,
         duration,
       })
-      return { success: false, error: error.message }
+      //return { success: false, error: error.message }
+
+      // Check for specific foreign key violations and create a user-friendly message
+      if (error.message.includes("fk_order_items_sku_uuid")) {
+        return { success: false, error: "This SKU cannot be deleted because it is part of an existing order." }
+      }
+      if (error.message.includes("fk_jobs_sku_uuid")) {
+        return { success: false, error: "This SKU cannot be deleted because it is part of an existing job." }
+      }
+
+      // Return a generic message for all other errors
+      return { success: false, error: "Failed to delete SKU since it is part of a current job or order." }
     }
 
     // Revalidate paths

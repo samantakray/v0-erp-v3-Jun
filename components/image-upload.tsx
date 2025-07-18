@@ -240,7 +240,7 @@ export function ImageUpload({
   return (
     <div className={cn("space-y-4", className)}>
       {/* Upload Area */}
-      <div
+      {!value && <div
         className={cn(
           "relative border-2 border-dashed rounded-lg p-6 transition-colors cursor-pointer",
           isDragOver && !disabled ? "border-primary bg-primary/5" : "border-gray-300 hover:border-gray-400",
@@ -274,7 +274,7 @@ export function ImageUpload({
             </>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Progress Bar */}
       {uploadState.isUploading && uploadState.progress > 0 && (
@@ -291,9 +291,9 @@ export function ImageUpload({
             <span>{uploadState.error}</span>
             {uploadState.retryCount < MAX_RETRY_ATTEMPTS && (
               <Button variant="outline" size="sm" onClick={handleRetry} disabled={uploadState.isUploading}>
-                <RefreshCw className="h-3 w-3 mr-1" />
-                Retry
-              </Button>
+              <RefreshCw className="h-3 w-3 mr-1" />
+              {value ? "Change Image" : "Retry"}
+            </Button>
             )}
           </AlertDescription>
         </Alert>

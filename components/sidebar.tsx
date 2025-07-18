@@ -29,19 +29,19 @@ export function Sidebar() {
       active: pathname === "/",
     },
     {
-      label: "SKU Management",
+      label: "SKU List",
       icon: Tag,
       href: "/skus",
       active: pathname === "/skus",
     },
     {
-      label: "Orders",
+      label: "Order List",
       icon: ClipboardList,
       href: "/orders",
       active: pathname === "/orders",
     },
     {
-      label: "Jobs",
+      label: "Job List",
       icon: Briefcase,
       href: "/job_list",
       active: pathname === "/job_list",
@@ -53,13 +53,13 @@ export function Sidebar() {
       active: pathname === "/production",
     },
     {
-      label: "Stone Management",
+      label: "Stone List",
       icon: Gem,
       href: "/stones",
       active: pathname === "/stones",
     },
     {
-      label: "Diamond Management",
+      label: "Diamond List",
       icon: Diamond,
       href: "/diamonds",
       active: pathname === "/diamonds",
@@ -86,8 +86,8 @@ export function Sidebar() {
 
   return (
     <div className="hidden border-r bg-background md:block">
-      <div className="flex h-full max-h-screen flex-col gap-2">
-        <div className="flex h-14 items-center border-b px-4">
+      <div className="flex h-full max-h-screen flex-col">
+        <div className="flex h-14 items-center border-b px-6">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Package className="h-6 w-6" />
             <span>Jewelry ERP</span>
@@ -99,8 +99,7 @@ export function Sidebar() {
               <Link
                 key={route.href}
                 href={route.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
+                className={cn("flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground",
                   route.active ? "bg-muted text-foreground" : "",
                 )}
               >

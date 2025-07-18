@@ -92,3 +92,19 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom Sheet Overrides - Force full width to sidebar edge */
+.force-full-width-sheet {
+  width: calc(100vw) !important;
+  max-width: none !important;
+  /*left: 240px !important;*/
+  right: 0 !important;
+}
+
+/* Responsive behavior - full width on mobile when sidebar is hidden */
+@media (max-width: 768px) {
+  .force-full-width-sheet {
+    width: 100vw !important;
+    left: 0 !important;
+  }
+}

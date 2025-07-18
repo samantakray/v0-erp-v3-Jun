@@ -469,7 +469,7 @@ export default function OrdersPage() {
 
   return (
     <div className="flex flex-col">
-      <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-muted/40 px-6">
+      <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-6">
         <div className="flex w-full items-center justify-between">
           <h1 className="text-xl font-semibold">Orders</h1>
           <Button
