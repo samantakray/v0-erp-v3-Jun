@@ -5,6 +5,7 @@ import { logger } from "@/lib/logger"
 import { revalidatePath } from "next/cache"
 import { JOB_STATUS, JOB_PHASE, JOB_STATUS_TO_ORDER_STATUS, ORDER_STATUS } from "@/constants/job-workflow"
 import type { StoneAllocation, DiamondAllocation, GoldUsageDetail, DiamondUsageDetail, ColoredStoneUsageDetail } from "@/types" // Added DiamondAllocation and QC usage detail types
+import { validateQCData } from "@/lib/validation";
 
 // Type definitions for action parameters
 type StoneSelectionData = {
@@ -126,17 +127,18 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
       logger.info("Diamond data to be saved", { data: { diamond_data: updateData.diamond_data } })
     } else if (phase === JOB_PHASE.MANUFACTURER) {
       updateData.manufacturer_data = data
-    } else if (phase === JOB_PHASE.QUALITY_CHECK) {
-      import { validateQCData } from "@/lib/validation";
-
-//... inside updateJobPhase function, within the QUALITY_CHECK case
-    } else if (phase === JOB_PHASE.QUALITY_CHECK) {
+    }  else if (phase === JOB_PHASE.QUALITY_CHECK) {
+        // Validate QC data using the schema from lib/validation.ts
       const validationResult = validateQCData(data);
       if (!validationResult.success) {
+            // Return early if validation fails
         return { success: false, error: "Invalid QC data", details: validationResult.errors };
       }
       // Console logging for QC data backend processing
+      // (add comments before logging for observability)
+  // Logging the received QC data for debugging
       console.log("🔍 QC BACKEND - Backend received QC data:", data)
+        // Logging the structure of QC data for analysis
       console.log("🔍 QC BACKEND - QC data structure analysis:", {
         hasGoldUsage: !!data.goldUsageDetails,
         goldUsageCount: data.goldUsageDetails?.length || 0,
@@ -146,9 +148,10 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
         coloredStoneUsageCount: data.coloredStoneUsageDetails?.length || 0,
         dataSize: JSON.stringify(data).length
       })
+        // Save the validated QC data
       updateData.qc_data = validationResult.data;
     }
-    }
+    
 
     logger.debug(`Updating job in Supabase`, {
       data: {
