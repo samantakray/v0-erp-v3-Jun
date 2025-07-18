@@ -51,7 +51,7 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
       .eq("job_id", jobId)
       .single()
 
-    '''logger.debug("Job data from query", { data: { jobData: jobData || "No job data found", jobId, error: jobError ? { message: jobError.message, code: jobError.code, details: jobError.details } : null } })
+    logger.debug("Job data from query", { data: { jobData: jobData || "No job data found", jobId, error: jobError ? { message: jobError.message, code: jobError.code, details: jobError.details } : null } })
 
     if (jobError) {
       const duration = performance.now() - startTime
@@ -59,7 +59,7 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
         data: { jobId, phase },
         error: jobError,
         duration,
-      })'''
+      })
       return { success: false, error: "Job not found" }
     }
 
@@ -112,7 +112,7 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
         ...data,
         allocations: filteredAllocations
       } as StoneSelectionData
-      '''      logger.info("Stone data to be saved", { data: { stone_data: updateData.stone_data } })
+      logger.info("Stone data to be saved", { data: { stone_data: updateData.stone_data } })
     } else if (phase === JOB_PHASE.DIAMOND) {
       // Filter out "None" allocations before saving
       const filteredAllocations = (data as DiamondSelectionData).allocations.filter(
@@ -123,11 +123,11 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
         ...data,
         allocations: filteredAllocations
       } as DiamondSelectionData
-      logger.info("Diamond data to be saved", { data: { diamond_data: updateData.diamond_data } })'''
+      logger.info("Diamond data to be saved", { data: { diamond_data: updateData.diamond_data } })
     } else if (phase === JOB_PHASE.MANUFACTURER) {
       updateData.manufacturer_data = data
     } else if (phase === JOB_PHASE.QUALITY_CHECK) {
-      '''import { validateQCData } from "@/lib/validation";
+      import { validateQCData } from "@/lib/validation";
 
 //... inside updateJobPhase function, within the QUALITY_CHECK case
     } else if (phase === JOB_PHASE.QUALITY_CHECK) {
@@ -147,7 +147,7 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
         dataSize: JSON.stringify(data).length
       })
       updateData.qc_data = validationResult.data;
-    }'''
+    }
     }
 
     logger.debug(`Updating job in Supabase`, {
@@ -170,16 +170,16 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
         .eq("id", jobData.id)
         .select()
 
-      '''      if (updateError) {
+      if (updateError) {
         logger.error("Failed to write to jobs table", { data: { jobId: jobData.id, updateDataAttempt: updateData }, error: updateError })
         return { success: false, error: "Failed to update job" }
       } else {
         logger.info("Wrote to jobs table successfully", { data: { jobId: jobData.id, updatedRows } })
-      }'''
-    '''    } catch (err) {
+      }
+    } catch (err) {
       logger.error("Supabase.update() threw an exception", { error: err })
       throw err
-    }'''
+    }
 
     logger.debug(`Adding job history entry in Supabase`, {
       data: { jobId: jobData.id, newStatus },
@@ -251,13 +251,13 @@ export async function updateJobPhase(jobId: string, phase: string, data: any) {
     })
     const { data: orderData } = await supabase.from("orders").select("order_id").eq("id", jobData.order_id).single()
 
-    '''    if (orderData?.order_id) {
+    if (orderData?.order_id) {
       revalidatePath(`/orders/${orderData.order_id}/jobs/${jobId}`)
       revalidatePath(`/orders/${orderData.order_id}/jobs`)
       revalidatePath(`/orders`)
     } else {
       logger.warn("Could not get order_id for revalidation path", { data: { orderIdInternal: jobData.order_id } })
-    }'''
+    }
 
     const duration = performance.now() - startTime
     logger.info(`updateJobPhase completed successfully`, {

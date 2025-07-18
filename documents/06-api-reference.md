@@ -355,7 +355,7 @@ type ManufacturerData = {
   remarks?: string
 }
 
-'''// QC Data (Validated)
+// QC Data (Validated)
 type QCData = {
   measuredWeight: number
   passed: boolean
@@ -392,7 +392,7 @@ interface ColoredStoneUsageDetail {
   lossWeight: number
   breakQuantity: number
   breakWeight: number
-}'''
+}
 \`\`\`
 
 #### `createJob(orderId: string, skuId: string, size?: string): Promise<{ success: boolean, jobId?: string, error?: string }>`

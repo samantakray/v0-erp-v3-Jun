@@ -180,7 +180,7 @@ Each phase has its own page:
 - `stone-selection/page.tsx`: For selecting stones
 - `diamond-selection/page.tsx`: For selecting diamonds
 - `manufacturer/page.tsx`: For manufacturer assignment
-'''- `quality-check/page.tsx`: For QC processes, including capturing the final measured weight, pass/fail status, and detailed material usage reports for gold, diamonds, and colored stones.'''
+- `quality-check/page.tsx`: For QC processes, including capturing the final measured weight, pass/fail status, and detailed material usage reports for gold, diamonds, and colored stones.
 - `complete/page.tsx`: For completed jobs
 
 ### Phase Transitions

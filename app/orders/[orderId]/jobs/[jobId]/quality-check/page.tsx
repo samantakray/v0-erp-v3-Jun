@@ -1,4 +1,4 @@
-'''"use client"
+"use client"
 
 import { useState, use, useEffect } from "react"
 import { useJob } from "@/components/job-context-provider"
@@ -230,4 +230,4 @@ export default function QualityCheckPage({ params }: { params: Promise<{ jobId: 
       <StickerPreview open={preview} onOpenChange={setPreview} jobId={job.id} phase="quality-check" data={stickerData} />
     </div>
   )
-}'''
+}

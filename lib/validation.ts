@@ -1,4 +1,4 @@
-'''import { supabase, createServiceClient } from "./supabaseClient"
+import { supabase, createServiceClient } from "./supabaseClient"
 import { logger } from "./logger"
 import { z } from "zod"
 
