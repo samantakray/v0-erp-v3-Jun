@@ -352,35 +352,26 @@ export function NewOrderSheet({
   }
 
   const addSKU = (sku) => {
-    // Check if SKU already exists in the selected list
-    const existingIndex = selectedSKUs.findIndex((item) => item.id === sku.id)
+    const instanceId = `sku-instance-${Date.now()}-${Math.random()}`;
+    const newSkuInstance = {
+      ...sku,
+      instanceId,
+      quantity: 1, // Quantity is always 1 for a new row
+      size: sku.size || "",
+      remarks: "",
+      individualProductionDate: productionDueDate || "",
+      individualDeliveryDate: deliveryDate || "",
+    };
+    setSelectedSKUs((prevSkus) => [...prevSkus, newSkuInstance]);
+  };
 
-    if (existingIndex >= 0) {
-      // If exists, update quantity
-      const updatedSKUs = [...selectedSKUs]
-      updatedSKUs[existingIndex].quantity += 1
-      setSelectedSKUs(updatedSKUs)
-    } else {
-      // If new, add with quantity 1 and individual dates if needed
-      const newSku = {
-        ...sku,
-        quantity: 1,
-        size: sku.size || "",
-        remarks: "",
-        individualProductionDate: productionDueDate || "",
-        individualDeliveryDate: deliveryDate || "",
-      }
-      setSelectedSKUs([...selectedSKUs, newSku])
-    }
+  const removeSKU = (instanceIdToRemove: string) => {
+    setSelectedSKUs(selectedSKUs.filter((sku) => sku.instanceId !== instanceIdToRemove));
   }
 
-  const removeSKU = (skuId) => {
-    setSelectedSKUs(selectedSKUs.filter((sku) => sku.id !== skuId))
-  }
-
-  const updateQuantity = (skuId, quantity) => {
+  const updateQuantity = (instanceIdToUpdate: string, quantity: string) => {
     const updatedSKUs = selectedSKUs.map((sku) => {
-      if (sku.id === skuId) {
+      if (sku.instanceId === instanceIdToUpdate) {
         return { ...sku, quantity: Number.parseInt(quantity) || 1 }
       }
       return sku
@@ -388,9 +379,9 @@ export function NewOrderSheet({
     setSelectedSKUs(updatedSKUs)
   }
 
-  const updateSize = (skuId, size) => {
+  const updateSize = (instanceIdToUpdate: string, size: string) => {
     const updatedSKUs = selectedSKUs.map((sku) => {
-      if (sku.id === skuId) {
+      if (sku.instanceId === instanceIdToUpdate) {
         return { ...sku, size: size }
       }
       return sku
@@ -398,9 +389,9 @@ export function NewOrderSheet({
     setSelectedSKUs(updatedSKUs)
   }
 
-  const updateRemarks = (skuId, value) => {
+  const updateRemarks = (instanceIdToUpdate: string, value: string) => {
     const updatedSKUs = selectedSKUs.map((sku) => {
-      if (sku.id === skuId) {
+      if (sku.instanceId === instanceIdToUpdate) {
         return { ...sku, remarks: value.slice(0, 100) }
       }
       return sku
@@ -408,9 +399,9 @@ export function NewOrderSheet({
     setSelectedSKUs(updatedSKUs)
   }
 
-  const updateIndividualDate = (skuId, field, value) => {
+  const updateIndividualDate = (instanceIdToUpdate: string, field: string, value: string) => {
     const updatedSKUs = selectedSKUs.map((sku) => {
-      if (sku.id === skuId) {
+      if (sku.instanceId === instanceIdToUpdate) {
         return { ...sku, [field]: value }
       }
       return sku
@@ -456,35 +447,10 @@ export function NewOrderSheet({
    * Parses the bulk SKU input string into an array of SKU IDs and quantities
    * Format expected: "SKU-001, SKU-001, SKU-002" (quantity is determined by occurrences)
    */
-  const parseBulkSkuInput = (input) => {
+  const parseBulkSkuInput = (input: string) => {
     if (!input.trim()) return []
-
-    try {
-      // Split by comma, trim whitespace, and filter out empty strings
-      const skuEntries = input
-        .split(",")
-        .map((item) => item.trim())
-        .filter((item) => item)
-
-      if (skuEntries.length === 0) return []
-
-      // Count occurrences of each SKU ID
-      const skuCounts = {}
-      for (const skuId of skuEntries) {
-        if (!skuId) {
-          throw new Error(`Invalid SKU ID format in input`)
-        }
-        skuCounts[skuId] = (skuCounts[skuId] || 0) + 1
-      }
-
-      // Convert to array of { skuId, quantity }
-      return Object.entries(skuCounts).map(([skuId, quantity]) => ({
-        skuId,
-        quantity: Number(quantity)
-      }))
-    } catch (error) {
-      throw new Error(`Failed to parse input: ${error.message}`)
-    }
+    // Just split, trim, and return the list of IDs
+    return input.split(",").map((item) => item.trim()).filter(Boolean)
   }
 
   /**
@@ -496,56 +462,33 @@ export function NewOrderSheet({
     setIsBulkProcessing(true)
 
     try {
-      const parsedItems = parseBulkSkuInput(bulkSkuInput)
-      if (parsedItems.length === 0) {
+      const parsedSkuIds = parseBulkSkuInput(bulkSkuInput)
+      if (parsedSkuIds.length === 0) {
         setBulkAssignError("Please enter at least one valid SKU ID. Example: SKU-001, SKU-001, SKU-002")
         setIsBulkProcessing(false)
         return
       }
 
-      // Find matching SKUs in the available SKUs list
-      const skusToAdd = []
-      const notFoundSkus = []
+      const notFoundSkus: string[] = []
 
-      for (const item of parsedItems) {
-        const sku = availableSKUs.find((s) => s.id === item.skuId)
+      for (const skuId of parsedSkuIds) {
+        const sku = availableSKUs.find((s) => s.id === skuId)
         if (sku) {
-          // Check if SKU is already selected
-          const existingIndex = selectedSKUs.findIndex((s) => s.id === item.skuId)
-
-          if (existingIndex >= 0) {
-            // Update quantity if already selected
-            const updatedSKUs = [...selectedSKUs]
-            updatedSKUs[existingIndex].quantity += item.quantity
-            setSelectedSKUs(updatedSKUs)
-          } else {
-            // Add new SKU with specified quantity
-            skusToAdd.push({
-              ...sku,
-              quantity: item.quantity,
-              size: sku.size || "",
-              remarks: "",
-              individualProductionDate: productionDueDate || "",
-              individualDeliveryDate: deliveryDate || "",
-            })
-          }
+          // Use the already-modified addSKU function for each instance
+          addSKU(sku)
         } else {
-          notFoundSkus.push(item.skuId)
+          notFoundSkus.push(skuId)
         }
-      }
-
-      if (skusToAdd.length > 0) {
-        setSelectedSKUs((prev) => [...prev, ...skusToAdd])
       }
 
       // Generate success/error message
       if (notFoundSkus.length > 0) {
         setBulkAssignError(`The following SKUs were not found: ${notFoundSkus.join(", ")}`)
-        if (skusToAdd.length > 0) {
-          setBulkAssignSuccess(`Successfully added ${skusToAdd.length} SKU(s) to your order`)
+        if (parsedSkuIds.length - notFoundSkus.length > 0) {
+          setBulkAssignSuccess(`Successfully added ${parsedSkuIds.length - notFoundSkus.length} SKU(s) to your order`)
         }
       } else {
-        setBulkAssignSuccess(`Successfully added ${skusToAdd.length} SKU(s) to your order`)
+        setBulkAssignSuccess(`Successfully added ${parsedSkuIds.length} SKU(s) to your order`)
         // Clear the input on success if all SKUs were found
         setBulkSkuInput("")
       }
@@ -956,7 +899,7 @@ export function NewOrderSheet({
                       </TableHeader>
                       <TableBody>
                         {selectedSKUs.map((sku) => (
-                          <TableRow key={sku.id}>
+                          <TableRow key={sku.instanceId}>
                             <TableCell className="w-[50px]">
                               <div
                                 className="w-10 h-10 rounded-md overflow-hidden cursor-pointer"
@@ -976,7 +919,7 @@ export function NewOrderSheet({
                                 type="text"
                                 className="w-full"
                                 value={sku.size || ""}
-                                onChange={(e) => updateSize(sku.id, e.target.value)}
+                                onChange={(e) => updateSize(sku.instanceId, e.target.value)}
                                 disabled={sku.category === "Earring" || isSubmitting}
                               />
                             </TableCell>
@@ -985,9 +928,8 @@ export function NewOrderSheet({
                                 type="number"
                                 min="1"
                                 className="w-full"
-                                value={sku.quantity}
-                                onChange={(e) => updateQuantity(sku.id, e.target.value)}
-                                disabled={isSubmitting}
+                                value={1}
+                                disabled
                               />
                             </TableCell>
                             <TableCell className="w-[140px]">
@@ -998,7 +940,7 @@ export function NewOrderSheet({
                                 onChange={(e) =>
                                   sameDatesForAll.production
                                     ? setProductionDueDate(e.target.value)
-                                    : updateIndividualDate(sku.id, "individualProductionDate", e.target.value)
+                                    : updateIndividualDate(sku.instanceId, "individualProductionDate", e.target.value)
                                 }
                                 onPaste={(e) => {
                                   if (sameDatesForAll.production) return
@@ -1006,7 +948,7 @@ export function NewOrderSheet({
                                   const pastedText = e.clipboardData.getData("text")
                                   // Try to parse the pasted text as a date
                                   if (pastedText && /^\d{4}-\d{2}-\d{2}$/.test(pastedText)) {
-                                    updateIndividualDate(sku.id, "individualProductionDate", pastedText)
+                                    updateIndividualDate(sku.instanceId, "individualProductionDate", pastedText)
                                   }
                                 }}
                                 disabled={isSubmitting || sameDatesForAll.production}
@@ -1020,7 +962,7 @@ export function NewOrderSheet({
                                 onChange={(e) =>
                                   sameDatesForAll.delivery
                                     ? handleDeliveryDateChange(e.target.value)
-                                    : updateIndividualDate(sku.id, "individualDeliveryDate", e.target.value)
+                                    : updateIndividualDate(sku.instanceId, "individualDeliveryDate", e.target.value)
                                 }
                                 onPaste={(e) => {
                                   if (sameDatesForAll.delivery) return
@@ -1028,7 +970,7 @@ export function NewOrderSheet({
                                   const pastedText = e.clipboardData.getData("text")
                                   // Try to parse the pasted text as a date
                                   if (pastedText && /^\d{4}-\d{2}-\d{2}$/.test(pastedText)) {
-                                    updateIndividualDate(sku.id, "individualDeliveryDate", pastedText)
+                                    updateIndividualDate(sku.instanceId, "individualDeliveryDate", pastedText)
                                   }
                                 }}
                                 disabled={isSubmitting || sameDatesForAll.delivery}
@@ -1039,7 +981,7 @@ export function NewOrderSheet({
                                 type="text"
                                 className="w-full"
                                 value={sku.remarks || ""}
-                                onChange={(e) => updateRemarks(sku.id, e.target.value)}
+                                onChange={(e) => updateRemarks(sku.instanceId, e.target.value)}
                                 placeholder="Add remarks"
                                 maxLength={100}
                                 disabled={isSubmitting}
@@ -1051,7 +993,7 @@ export function NewOrderSheet({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => removeSKU(sku.id)}
+                                onClick={() => removeSKU(sku.instanceId)}
                                 disabled={isSubmitting}
                               >
                                 <Trash2 className="h-4 w-4" />
