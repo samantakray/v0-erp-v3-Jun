@@ -1060,47 +1060,44 @@ export function NewOrderSheet({
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {filteredSKUs.map((sku) => {
-                                  const isSelected = isSkuSelected(sku.id)
-                                  return (
-                                    <TableRow key={sku.id} className={isSelected ? "sku-row-selected" : ""}>
-                                      <TableCell className="w-[50px]">
-                                        <div
-                                          className="w-8 h-8 rounded-md overflow-hidden cursor-pointer"
-                                          onClick={() => openImageDialog(sku.image)}
-                                        >
-                                          <img
-                                            src={sku.image || "/placeholder.svg?height=40&width=40&text=SKU"}
-                                            alt={sku.name}
-                                            className="w-full h-full object-cover"
-                                          />
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="w-[90px] font-semibold">{sku.id}</TableCell>
-                                      <TableCell className="w-[100px]">{sku.category}</TableCell>
-                                      <TableCell className="min-w-[120px]">
-                                        {sku.collection ? (
-                                          <span>{sku.collection}</span>
-                                        ) : (
-                                          <span className="italic text-muted-foreground">None</span>
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="w-[100px] text-center">
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() => addSKU(sku)}
-                                          disabled={isSubmitting || isSelected}
-                                          className="border border-gray-300"
-                                        >
-                                          <Plus className="h-4 w-4 mr-1" />
-                                          Add to Order
-                                        </Button>
-                                      </TableCell>
-                                    </TableRow>
-                                  )
-                                })}
+                                {filteredSKUs.map((sku) => (
+                                  <TableRow key={sku.id} className={isSkuSelected(sku.id) ? "sku-row-selected" : ""}>
+                                    <TableCell className="w-[50px]">
+                                      <div
+                                        className="w-8 h-8 rounded-md overflow-hidden cursor-pointer"
+                                        onClick={() => openImageDialog(sku.image)}
+                                      >
+                                        <img
+                                          src={sku.image || "/placeholder.svg?height=40&width=40&text=SKU"}
+                                          alt={sku.name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="w-[90px] font-semibold">{sku.id}</TableCell>
+                                    <TableCell className="w-[100px]">{sku.category}</TableCell>
+                                    <TableCell className="min-w-[120px]">
+                                      {sku.collection ? (
+                                        <span>{sku.collection}</span>
+                                      ) : (
+                                        <span className="italic text-muted-foreground">None</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="w-[100px] text-center">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => addSKU(sku)}
+                                        disabled={isSubmitting}
+                                        className="border border-gray-300"
+                                      >
+                                        <Plus className="h-4 w-4 mr-1" />
+                                        Add to Order
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
                                 {filteredSKUs.length === 0 && (
                                   <TableRow>
                                     <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
