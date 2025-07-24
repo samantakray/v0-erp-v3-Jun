@@ -1,10 +1,8 @@
 .sku-row-selected {
-  opacity: 0.6;
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: rgba(13, 255, 0, 0.6);
 }
 
 .sku-row-selected button {
-  cursor: not-allowed;
 }
 
 .auto-width-table {

@@ -79,7 +79,7 @@ export async function createOrder(orderData: Omit<Order, "id">) {
     const orderItems = orderData.skus.map((sku) => ({
       order_id: newOrder.id,
       sku_id: skuIdToUuid[sku.id],
-      quantity: sku.quantity,
+      quantity: 1, // Hardcode quantity to 1 for each item
       size: sku.size,
       remarks: sku.remarks,
       individual_production_date: sku.individualProductionDate || null,
@@ -113,16 +113,17 @@ export async function createOrder(orderData: Omit<Order, "id">) {
       data: { orderId: newOrder.order_id, itemCount: insertedItems.length },
     })
 
-    // --- 2) build jobs in memory ------------------------------------
+    // --- 2) build jobs in memory (SIMPLIFIED) ------------------------------------
     const nowIso = new Date().toISOString()
     const jobs: any[] = []
     let seq = 1
 
+    // The nested loop is GONE. We now create one job per insertedItem.
     for (const item of insertedItems) {
       const prodDate = item.individual_production_date ?? orderData.productionDate
       const dueDate = item.individual_delivery_date ?? orderData.dueDate
 
-      logger.debug(`Generating jobs for order item`, {
+      logger.debug(`Generating job for order item`, {
         data: {
           orderItemId: item.id,
           skuId: item.sku_id,
@@ -132,21 +133,19 @@ export async function createOrder(orderData: Omit<Order, "id">) {
         },
       })
 
-      for (let copy = 1; copy <= item.quantity; copy++) {
-        jobs.push({
-          job_id: `J${newOrder.order_id.substring(1)}-${seq++}`,
-          order_id: newOrder.id,
-          order_item_id: item.id,
-          sku_id: item.sku_id,
-          size: item.size,
-          status: JOB_STATUS.NEW,
-          current_phase: JOB_PHASE.STONE,
-          production_date: prodDate,
-          due_date: dueDate,
-          created_at: nowIso,
-          updated_at: nowIso,
-        })
-      }
+      jobs.push({
+        job_id: `J${newOrder.order_id.substring(1)}-${seq++}`,
+        order_id: newOrder.id,
+        order_item_id: item.id,
+        sku_id: item.sku_id,
+        size: item.size,
+        status: JOB_STATUS.NEW,
+        current_phase: JOB_PHASE.STONE,
+        production_date: prodDate,
+        due_date: dueDate,
+        created_at: nowIso,
+        updated_at: nowIso,
+      })
     }
     // ----------------------------------------------------------------
 
@@ -323,7 +322,7 @@ export async function updateOrder(orderData: Order) {
       const orderItems = orderData.skus.map((sku) => ({
         order_id: orderUuid,
         sku_id: skuIdToUuid[sku.id],
-        quantity: sku.quantity,
+        quantity: 1, // Hardcode quantity to 1 for each item
         size: sku.size,
         remarks: sku.remarks,
         individual_production_date: sku.individualProductionDate || null,
