@@ -52,10 +52,10 @@ export interface DiamondLotData {
   id: string
   lot_number: string
   size: string
-  shape: string
-  quality: string
-  a_type: string // As per schema
-  stonegroup: string // As per schema
+  shape?: string
+  quality?: string
+  a_type?: string // As per schema
+  stonegroup?: string // As per schema
   quantity: number // Available quantity in the lot
   weight: number // Total weight of the lot in carats
   price: number // As per schema

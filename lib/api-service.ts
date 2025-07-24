@@ -1383,3 +1383,53 @@ export async function fetchDiamondLots(): Promise<DiamondLotData[]> {
     return [] // Return empty array on unexpected error
   }
 }
+
+
+export async function fetchAllDiamondLots(): Promise<DiamondLotData[]> {
+  const startTime = performance.now();
+  logger.info('fetchAllDiamondLots called', { data: { useMocks } });
+
+  if (useMocks) {
+    // Return empty array for mocks, mirroring fetchAllStoneLots
+    const duration = performance.now() - startTime;
+    logger.info('fetchAllDiamondLots completed with mock data', { duration });
+    return [];
+  }
+
+  try {
+    logger.debug('Fetching all diamond lots from Supabase');
+    const { data, error } = await supabase
+      .from('diamond_lots')
+      .select('*')
+      .order('created_at', { ascending: false }); // Most recent first
+
+    if (error) {
+      throw error;
+    }
+
+    const duration = performance.now() - startTime;
+    logger.info('Successfully fetched all diamond lots', {
+      data: { count: data?.length || 0 },
+      duration,
+    });
+
+    // Map Supabase data to DiamondLotData type
+    return (data || []).map((lot) => ({
+      id: lot.id,
+      lot_number: lot.lot_number,
+      size: lot.size,
+      shape: lot.shape,
+      quality: lot.quality,
+      a_type: lot.a_type,
+      stonegroup: lot.stonegroup,
+      quantity: lot.quantity,
+      weight: parseFloat(lot.weight), // Convert string to number
+      price: parseFloat(lot.price),   // Convert string to number
+      status: lot.status,
+    }));
+  } catch (error) {
+    const duration = performance.now() - startTime;
+    logger.error('Error fetching all diamond lots', { error, duration });
+    throw error; // Re-throw for caller to handle
+  }
+}
