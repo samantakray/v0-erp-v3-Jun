@@ -19,13 +19,20 @@ export type SKU = {
 
 // Define the type for a single stone lot from the database
 export interface StoneLotData {
-  id: string
-  lot_number: string
-  stone_type: string
-  size: string
-  quantity: number
-  weight: number
-  available: boolean
+  id: string;
+  lot_number: string;
+  stone_type: string;
+  size: string;
+  quantity: number;
+  weight: number;
+  available: boolean;
+  // New fields from your Supabase table
+  shape?: string;
+  quality?: string;
+  type?: string;
+  location?: string;
+  status?: string; // If you want to expose the raw status
+  created_at?: string; // For displaying when the lot was created
 }
 
 // Define the type for an allocated stone row in the form
