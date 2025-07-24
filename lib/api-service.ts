@@ -1151,6 +1151,61 @@ export async function fetchStoneLots(): Promise<StoneLotData[]> {
 }
 
 /**
+ * Fetches all stone lots from the database for the stone lots listing page
+ * @returns Array of all stone lot objects with complete details
+ */
+export async function fetchAllStoneLots(): Promise<StoneLotData[]> {
+  const startTime = performance.now()
+  logger.info('fetchAllStoneLots called', { data: { useMocks } })
+
+  if (useMocks) {
+    // In a real implementation, you might want to add mock data here
+    const duration = performance.now() - startTime
+    logger.info('fetchAllStoneLots completed with mock data', { duration })
+    return [] // Return empty array for mocks since we don't have mock data
+  }
+
+  try {
+    logger.debug('Fetching all stone lots from Supabase')
+    const { data, error } = await supabase
+      .from('stone_lots')
+      .select('*')
+      .order('created_at', { ascending: false }) // Most recent first
+
+    if (error) {
+      throw error
+    }
+
+    const duration = performance.now() - startTime
+    logger.info('Successfully fetched all stone lots', {
+      data: { count: data?.length || 0 },  // Wrap custom data in a 'data' object
+      duration,
+    })
+
+    // Map the data to our StoneLotData type
+    return (data || []).map((lot) => ({
+      id: lot.id,
+      lot_number: lot.lot_number,
+      stone_type: lot.stone_type,
+      stone_size: lot.stone_size,
+      quantity: lot.quantity,
+      weight: lot.weight,
+      available: lot.status === 'Available',
+      shape: lot.shape,
+      quality: lot.quality,
+      type: lot.type,
+      location: lot.location,
+      status: lot.status,
+      created_at: lot.created_at,
+    }))
+  } catch (error) {
+    const duration = performance.now() - startTime
+    logger.error('Error fetching all stone lots', { error, duration })
+    throw error // Re-throw to be handled by the caller
+  }
+}
+
+/**
  * Fetches diamond lots from the database
  * @returns Array of diamond lot objects
  */

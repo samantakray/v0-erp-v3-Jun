@@ -22,7 +22,7 @@ export interface StoneLotData {
   id: string;
   lot_number: string;
   stone_type: string;
-  size: string;
+  stone_size: string;
   quantity: number;
   weight: number;
   available: boolean;
