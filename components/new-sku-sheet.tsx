@@ -240,6 +240,10 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   const handleSkuChange = React.useCallback((index, field, value) => {
     setMultipleSkus(currentSkus => {
       const newSkus = [...currentSkus]
+      // Revoke old URL if it exists
+      if (newSkus[index].imageUrl && newSkus[index].imageUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(newSkus[index].imageUrl);
+      }
       newSkus[index] = { ...newSkus[index], [field]: value }
       return newSkus
     })

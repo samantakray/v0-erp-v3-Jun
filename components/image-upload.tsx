@@ -80,7 +80,14 @@ export function ImageUpload({
       setUploadState((prev) => ({ ...prev, isUploading: true, progress: 5 }))
 
       try {
-        const imageToUpload = await compressAndConvertToWebp(file);
+        const result = await compressAndConvertToWebp(file);
+
+        if (result.error) {
+          setUploadState((prev) => ({ ...prev, isUploading: false, error: result.error }));
+          return;
+        }
+
+        const imageToUpload = result.compressedFile;
 
         const validation = await validateImageFile(imageToUpload);
         if (!validation.isValid) {
@@ -190,7 +197,7 @@ export function ImageUpload({
 
   const handleDelete = useCallback(() => {
     if (disabled) return
-    onChange(null, null)
+    onChange(null)
     onFileChange?.(null)
     resetUploadState()
   }, [disabled, onChange, onFileChange, resetUploadState])
@@ -294,6 +301,9 @@ export function ImageUpload({
           "relative w-full max-h-32 bg-gray-50 border border-gray-200 rounded-lg overflow-hidden shadow-sm",
           !disabled && "cursor-pointer"
         )}
+        role="button"
+        aria-label="Click to preview image"
+        tabIndex={!disabled ? 0 : -1}
         onClick={() => {
           if (!disabled) {
             setShowPreviewModal(true);
