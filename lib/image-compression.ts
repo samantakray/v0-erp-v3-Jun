@@ -45,7 +45,13 @@ export async function compressAndConvertToWebp(
 }> {
   // Input validation
   if (!(file instanceof File)) {
-    throw new Error('Invalid input: Expected a File object');
+    return {
+      compressedFile: file as any,
+      wasCompressed: false,
+      originalSize: 0,
+      compressedSize: 0,
+      error: 'Invalid input: Expected a File object'
+    };
   }
 
   if (!file.type.startsWith('image/')) {
