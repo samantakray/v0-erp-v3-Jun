@@ -8,11 +8,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Upload, X, RefreshCw, Eye, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { uploadImageToSupabase, validateImageFile, generateSkuImagePath } from "@/lib/supabase-storage"
+import { validateImageFile } from "@/lib/supabase-storage";
+import { compressAndConvertToWebp } from "@/lib/image-compression";
 
 interface ImageUploadProps {
   value?: string // Current image URL
-  onChange: (url: string | null, file: File | null) => void
+  onChange: (file: File | null) => void
   onFileChange?: (file: File | null) => void // Optional callback for file object
   skuId?: string // Optional SKU ID for permanent storage path
   disabled?: boolean
@@ -76,44 +77,29 @@ export function ImageUpload({
       }
 
       resetUploadState()
-      setUploadState((prev) => ({ ...prev, isUploading: true, progress: 10 }))
+      setUploadState((prev) => ({ ...prev, isUploading: true, progress: 5 }))
 
       try {
-        const validation = await validateImageFile(file)
+        const imageToUpload = await compressAndConvertToWebp(file);
+
+        const validation = await validateImageFile(imageToUpload);
         if (!validation.isValid) {
-          // Keep: This log is directly related to a validation error
-          console.log("🔍 ImageUpload DEBUG - File validation failed:", validation.error)
           setUploadState((prev) => ({
             ...prev,
             isUploading: false,
             error: validation.error || "File validation failed",
-          }))
-          return
+          }));
+          return;
         }
 
-        setUploadState((prev) => ({ ...prev, progress: 30 }))
+        onChange(imageToUpload);
 
-        const uploadPath = generateSkuImagePath(skuId, file.name)
-
-        setUploadState((prev) => ({ ...prev, progress: 50 }))
-
-        const uploadResult = await uploadImageToSupabase(file, "product-images", uploadPath)
-
-        if (!uploadResult.success) {
-          throw new Error(uploadResult.error || "Upload failed")
-        }
-
-        setUploadState((prev) => ({ ...prev, progress: 90 }))
-
-        onChange(uploadResult.url || null, file)
-        onFileChange?.(file)
-
-        setUploadState((prev) => ({ ...prev, progress: 100, isUploading: false }))
+        setUploadState((prev) => ({ ...prev, progress: 100, isUploading: false }));
 
         // Clear progress after a short delay
         setTimeout(() => {
-          setUploadState((prev) => ({ ...prev, progress: 0 }))
-        }, 1000)
+          setUploadState((prev) => ({ ...prev, progress: 0 }));
+        }, 1000);
       } catch (error) {
         // Keep: This is an essential error log
         console.error("🔍 ImageUpload DEBUG - Upload error:", error)

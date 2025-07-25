@@ -2,6 +2,32 @@
 
 This document outlines the implementation steps for integrating image upload and management features into the Jewellery ERP system, covering Phase 1 Step 1 through Phase 3 Step 2.
 
+
+
+    1 sequenceDiagram
+    2     participant User
+    3     participant Client as Browser (ImageUpload.tsx)
+    4     participant Server as ERP Server (Action)
+    5     participant Supabase
+    6     participant DB as ERP Database
+    7 
+    8     User->>+Client: Selects Image
+    9     Client->>Client: Compress Image
+   10     Note right of Client: Generates local preview URL<br
+      />(URL.createObjectURL)
+   11     Client-->>User: Shows Preview
+   12     User->>Client: Clicks "Create SKU(s)"
+   13     Client->>+Server: Sends Form Data with **File
+      Object**
+   14     Note over Server,Supabase: Transactional
+      Integrity!<br/>Server manages both steps.
+   15     Server->>+Supabase: Uploads File
+   16     Supabase-->>-Server: Returns Public URL
+   17     Server->>+DB: Writes SKU data with URL
+   18     DB-->>-Server: Success
+   19     Server-->>-Client: Success
+
+
 ---
 
 ## Phase 1: Initial Setup

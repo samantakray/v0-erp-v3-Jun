@@ -146,7 +146,7 @@ const SkuTableRow = React.memo(function SkuTableRow(props) {
         <div className="w-[150px]">
           <ImageUpload
                             value={sku.imageUrl}
-                            onChange={(url, file) => handleImageChange(url, file, index)}
+                            onChange={(file) => handleImageChange(file, index)}
                             onError={(err) => handleImageError(err, index)}
                             tempId={`sku-temp-${index}-${Date.now()}`}
                             skuId={skuIdPreview !== "Generating..." ? skuIdPreview : undefined}
@@ -274,10 +274,10 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   }
 
   // Handle image URL change for a specific SKU in the set
-  const handleImageChange = React.useCallback((imageUrl, file, index) => {
+  const handleImageChange = React.useCallback((file, index) => {
     setMultipleSkus(currentSkus => {
       const newSkus = [...currentSkus];
-      newSkus[index] = { ...newSkus[index], imageUrl, imageFile: imageUrl ? null : file };
+      newSkus[index] = { ...newSkus[index], imageFile: file, imageUrl: file ? URL.createObjectURL(file) : "" };
       return newSkus;
     });
     setUploadErrors(currentErrors => {
@@ -377,8 +377,8 @@ if (hasDuplicates) {
           stoneType: sku.stoneType,
           diamondType: sku.diamondType,
           weight: sku.weight,
-          image: sku.imageUrl || "/placeholder.svg?height=80&width=80", // Use the stored image URL
-          imageFile: sku.imageFile, // Add the File object
+          image: "", // This will be handled by the backend
+          imageFile: sku.imageFile, // Pass the File object to the server action
         }
       })
 

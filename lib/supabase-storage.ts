@@ -309,13 +309,14 @@ export function generateSkuImagePath(skuId?: string, fileName?: string): string 
   const timestamp = Date.now()
   const randomId = Math.random().toString(36).substring(2, 15)
 
+  // Since all uploads are converted to WebP, always use the .webp extension.
+  const extension = "webp";
+
   if (skuId) {
     // Permanent path for existing SKU
-    const extension = fileName ? fileName.split(".").pop() : "jpg"
     return `skus/${skuId}/original.${extension}`
   } else {
     // Temporary path for new SKU (before SKU ID is generated)
-    const extension = fileName ? fileName.split(".").pop() : "jpg"
     return `temp/${timestamp}-${randomId}.${extension}`
   }
 }
