@@ -238,7 +238,7 @@ export default function SKUsPage() {
       accessor: "image",
       render: (sku) => (
         <Image
-          src={sku.image || "/placeholder.svg"}
+          src={(sku.image && typeof sku.image === 'string' && sku.image.trimEnd()) || "/placeholder.svg"}
           alt={sku.name}
           width={40}
           height={40}
