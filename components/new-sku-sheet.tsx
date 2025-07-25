@@ -146,7 +146,10 @@ const SkuTableRow = React.memo(function SkuTableRow(props) {
         <div className="w-[150px]">
           <ImageUpload
                             value={sku.imageUrl}
-                            onChange={(file) => handleImageChange(file, index)}
+                            onChange={(file) => {
+                              const url = file ? URL.createObjectURL(file) : null;
+                              handleImageChange(file, index);
+                            }}
                             onError={(err) => handleImageError(err, index)}
                             tempId={`sku-temp-${index}-${Date.now()}`}
                             skuId={skuIdPreview !== "Generating..." ? skuIdPreview : undefined}

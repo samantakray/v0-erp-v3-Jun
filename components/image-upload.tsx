@@ -10,6 +10,7 @@ import { Upload, X, RefreshCw, Eye, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { validateImageFile } from "@/lib/supabase-storage";
 import { compressAndConvertToWebp } from "@/lib/image-compression";
+import Image from "next/image"
 
 interface ImageUploadProps {
   value?: string // Current image URL
@@ -310,10 +311,12 @@ export function ImageUpload({
           }
         }}
       >
-        <img
+        <Image
           src={value || "/placeholder.svg"}
           alt="Uploaded image"
-          className="w-full h-full object-contain"
+          fill
+          className="object-contain"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
             target.src = "/placeholder.svg?height=128&width=200&text=Image+Error";

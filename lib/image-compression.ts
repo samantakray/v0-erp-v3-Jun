@@ -85,7 +85,7 @@ export async function compressAndConvertToWebp(
       compressedSize: compressedFile.size
     };
   } catch (error) {
-    console.error('Image compression failed:', error);
+    console.error('Image compression failed:', error instanceof Error ? error.message : 'Unknown error');
     return {
       compressedFile: file,
       wasCompressed: false,
