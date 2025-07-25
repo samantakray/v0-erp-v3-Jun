@@ -8,11 +8,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Upload, X, RefreshCw, Eye, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { uploadImageToSupabase, validateImageFile, generateSkuImagePath } from "@/lib/supabase-storage"
+import { validateImageFile } from "@/lib/supabase-storage";
+import { compressAndConvertToWebp } from "@/lib/image-compression";
+import Image from "next/image"
 
 interface ImageUploadProps {
   value?: string // Current image URL
-  onChange: (url: string | null, file: File | null) => void
+  onChange: (file: File | null) => void
   onFileChange?: (file: File | null) => void // Optional callback for file object
   skuId?: string // Optional SKU ID for permanent storage path
   disabled?: boolean
@@ -76,44 +78,36 @@ export function ImageUpload({
       }
 
       resetUploadState()
-      setUploadState((prev) => ({ ...prev, isUploading: true, progress: 10 }))
+      setUploadState((prev) => ({ ...prev, isUploading: true, progress: 5 }))
 
       try {
-        const validation = await validateImageFile(file)
+        const result = await compressAndConvertToWebp(file);
+
+        if (result.error) {
+          setUploadState((prev) => ({ ...prev, isUploading: false, error: result.error }));
+          return;
+        }
+
+        const imageToUpload = result.compressedFile;
+
+        const validation = await validateImageFile(imageToUpload);
         if (!validation.isValid) {
-          // Keep: This log is directly related to a validation error
-          console.log("🔍 ImageUpload DEBUG - File validation failed:", validation.error)
           setUploadState((prev) => ({
             ...prev,
             isUploading: false,
             error: validation.error || "File validation failed",
-          }))
-          return
+          }));
+          return;
         }
 
-        setUploadState((prev) => ({ ...prev, progress: 30 }))
+        onChange(imageToUpload);
 
-        const uploadPath = generateSkuImagePath(skuId, file.name)
-
-        setUploadState((prev) => ({ ...prev, progress: 50 }))
-
-        const uploadResult = await uploadImageToSupabase(file, "product-images", uploadPath)
-
-        if (!uploadResult.success) {
-          throw new Error(uploadResult.error || "Upload failed")
-        }
-
-        setUploadState((prev) => ({ ...prev, progress: 90 }))
-
-        onChange(uploadResult.url || null, file)
-        onFileChange?.(file)
-
-        setUploadState((prev) => ({ ...prev, progress: 100, isUploading: false }))
+        setUploadState((prev) => ({ ...prev, progress: 100, isUploading: false }));
 
         // Clear progress after a short delay
         setTimeout(() => {
-          setUploadState((prev) => ({ ...prev, progress: 0 }))
-        }, 1000)
+          setUploadState((prev) => ({ ...prev, progress: 0 }));
+        }, 1000);
       } catch (error) {
         // Keep: This is an essential error log
         console.error("🔍 ImageUpload DEBUG - Upload error:", error)
@@ -204,7 +198,7 @@ export function ImageUpload({
 
   const handleDelete = useCallback(() => {
     if (disabled) return
-    onChange(null, null)
+    onChange(null)
     onFileChange?.(null)
     resetUploadState()
   }, [disabled, onChange, onFileChange, resetUploadState])
@@ -298,41 +292,53 @@ export function ImageUpload({
           </AlertDescription>
         </Alert>
       )}
-
-      {/* Image Preview */}
+      
+    
       {value && showPreview && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Badge variant="default" className="text-xs bg-green-100 text-green-800">
-              Image uploaded successfully
-            </Badge>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowPreviewModal(true)} disabled={disabled}>
-                <Eye className="h-3 w-3 mr-1" />
-                Preview
-              </Button>
-              {allowDelete && (
-                <Button variant="outline" size="sm" onClick={handleDelete} disabled={disabled}>
-                  <Trash2 className="h-3 w-3 mr-1" />
-                  Delete
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div className="relative w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
-            <img
-              src={value || "/placeholder.svg"}
-              alt="Uploaded image"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement
-                target.src = "/placeholder.svg?height=128&width=200&text=Image+Error"
-              }}
-            />
-          </div>
-        </div>
+  <div className="space-y-2">
+    <div className="flex items-center justify-start space-x-4">
+      <div
+        className={cn(
+          "relative w-full max-h-32 bg-gray-50 border border-gray-200 rounded-lg overflow-hidden shadow-sm",
+          !disabled && "cursor-pointer"
+        )}
+        role="button"
+        aria-label="Click to preview image"
+        tabIndex={!disabled ? 0 : -1}
+        onClick={() => {
+          if (!disabled) {
+            setShowPreviewModal(true);
+          }
+        }}
+      >
+        <Image
+          src={value || "/placeholder.svg"}
+          alt="Uploaded image"
+          fill
+          className="object-contain"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = "/placeholder.svg?height=128&width=200&text=Image+Error";
+          }}
+        />
+      </div>
+      {allowDelete && (
+       
+       <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDelete}
+          disabled={disabled}
+          className="border-red-600 text-red-600 hover:bg-red-50" // Red border and text, hover effect
+        >
+          <Trash2 className="h-3 w-3 mr-1 text-red-600" /> {/* Red trash icon */}
+          Delete
+        </Button>
       )}
+    </div>
+  </div>
+)}
 
       {/* Preview Modal */}
       {showPreviewModal && value && (

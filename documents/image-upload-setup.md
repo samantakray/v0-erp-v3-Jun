@@ -2,6 +2,32 @@
 
 This document outlines the implementation steps for integrating image upload and management features into the Jewellery ERP system, covering Phase 1 Step 1 through Phase 3 Step 2.
 
+
+
+    1 sequenceDiagram
+    2     participant User
+    3     participant Client as Browser (ImageUpload.tsx)
+    4     participant Server as ERP Server (Action)
+    5     participant Supabase
+    6     participant DB as ERP Database
+    7 
+    8     User->>+Client: Selects Image
+    9     Client->>Client: Compress Image
+   10     Note right of Client: Generates local preview URL<br
+      />(URL.createObjectURL)
+   11     Client-->>User: Shows Preview
+   12     User->>Client: Clicks "Create SKU(s)"
+   13     Client->>+Server: Sends Form Data with **File
+      Object**
+   14     Note over Server,Supabase: Transactional
+      Integrity!<br/>Server manages both steps.
+   15     Server->>+Supabase: Uploads File
+   16     Supabase-->>-Server: Returns Public URL
+   17     Server->>+DB: Writes SKU data with URL
+   18     DB-->>-Server: Success
+   19     Server-->>-Client: Success
+
+
 ---
 
 ## Phase 1: Initial Setup
@@ -132,6 +158,55 @@ This document outlines the implementation steps for integrating image upload and
 ---
 
 This documentation provides a comprehensive overview of the image upload feature implementation, detailing the objectives, reasoning, and specific file changes for each phase and step.
+
+
+# User Experience (UX)
+
+The user journey is designed to be straightforward and intuitive:
+
+1. The user sees a clear "Click or drag to upload" area for each SKU they are defining.
+2. During the upload, visual cues like a spinning icon and a progress bar keep the user informed.
+3. If an error occurs (e.g., wrong file type), the form displays a specific error message and a "Retry" button, guiding the user to a solution.
+4. A successful upload replaces the upload area with a thumbnail of the image, along with "Preview" and "Delete" buttons, giving the user immediate confirmation and control.
+5. The main "Create" button is disabled if any uploads are in progress or have failed, preventing the user from creating SKUs with incomplete or broken image links.
+
+## Concerns & Recommendations
+
+The feature is well-implemented for its purpose, but based on the documentation and code, here are several areas for improvement, categorized by priority.
+
+### High Priority (Immediate Business Value & Core Functionality)
+
+1. **Concern: Lack of Post-Creation Management**
+   - The current workflow only handles image uploads for new SKUs. There is no way for a user to replace or delete an image for an existing SKU.
+   - **Recommendation**: Implement the "Replace/Delete Existing Images" feature outlined in the documentation. This is a critical feature for managing a product catalog over time.
+
+2. **Concern: Performance and Cost**
+   - The system uploads the original, full-size image file directly. This can lead to slow upload times for users, increased storage costs, and slower page loads where images are displayed.
+   - **Recommendation**: Implement client-side image compression before upload. This would significantly reduce file sizes, improving UX and lowering storage costs, without a noticeable loss in quality for web display.
+
+3. **Concern: Limited Detail in Previews**
+   - For a jewelry business, minute details are critical. The current preview is a simple modal.
+   - **Recommendation**: As suggested in the docs, enhance the Image Preview with Zoom functionality. This would allow users to inspect the quality and details of an image before associating it with a SKU, reducing errors.
+
+### Medium Priority (Operational Efficiency & UX Enhancements)
+
+1. **Concern: Potential for Orphaned Files**
+   - If a user uploads an image but then closes the sheet without creating the SKU, the image file may remain in the storage bucket, becoming an "orphaned" file that consumes storage space and incurs cost.
+   - **Recommendation**: Implement the Automatic Cleanup of Unused Images script mentioned in the documentation. This should be run periodically to find and delete images in storage that are not referenced by any SKU in the database.
+
+2. **Concern: Inefficient Multi-Image Workflow**
+   - Jewelry products often require multiple images (e.g., different angles, on a model). The current UI only supports one image per SKU.
+   - **Recommendation**: Implement Multiple File Selection and a dedicated UI to manage several images for a single SKU. This would be a major efficiency improvement.
+
+### Low Priority (Advanced Optimizations)
+
+1. **Concern: One-Size-Fits-All Image Serving**
+   - The full-resolution image is used everywhere (thumbnails, previews, etc.), which is inefficient for page loading.
+   - **Recommendation**: Implement a system to Generate Multiple Image Sizes (thumbnail, medium, full) on the backend after an upload. The application can then serve the most appropriate size for the context, dramatically improving performance.
+
+2. **Concern: Lack of Modern Format Support**
+   - The system uses standard image formats like JPEG and PNG.
+
 
 ## Recommended Further Improvements for Image Upload
 
@@ -352,22 +427,7 @@ This section outlines the remaining phases of the image upload plan, detailing o
 - `config/cdn-config.ts` (NEW) - CDN configuration settings
 
 ---
+ 
 
-### **Priority Recommendations**
 
-### **High Priority** (Immediate Business Value):
-1. Image preview with zoom - Essential for jewelry business
-2. Replace/delete existing images - Core functionality need
-3. Client-side compression - Reduces costs and improves UX
 
-### **Medium Priority** (Operational Efficiency):
-1. Bulk image operations - Saves significant time
-2. Drag and drop support - Modern UX expectation
-3. Automatic cleanup - Prevents cost accumulation
-
-### **Low Priority** (Advanced Optimization):
-1. Multiple image sizes - Performance optimization
-2. WebP conversion - Modern browser optimization
-3. CDN integration - Global performance enhancement
-
-This plan provides a comprehensive image management system that scales from basic functionality to enterprise-grade features.

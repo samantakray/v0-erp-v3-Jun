@@ -526,7 +526,11 @@ export default function NewSKUPage() {
                                     <div className="w-[120px]">
                                       <ImageUpload
                                         value={sku.imageUrl}
-                                        onChange={(url) => handleImageUrlChange(index, url)}
+                                        // onChange={(url) => handleImageUrlChange(index, url)}
+                                        onChange={(file) => {
+                                          const url = file ? URL.createObjectURL(file) : null;
+                                          handleImageUrlChange(index, url);
+                                        }}
                                         skuId={`temp-sku-${index}`}
                                         showPreview={false}
                                       />
@@ -641,7 +645,10 @@ export default function NewSKUPage() {
                                 <div className="w-[120px]">
                                   <ImageUpload
                                     value={imageUrl}
-                                    onChange={setImageUrl}
+                                    onChange={(file) => {
+                                      const url = file ? URL.createObjectURL(file) : null;
+                                      setImageUrl(url);
+                                    }}
                                     skuId="temp-single-sku"
                                     showPreview={false}
                                   />
