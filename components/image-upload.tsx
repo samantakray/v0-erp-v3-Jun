@@ -298,41 +298,48 @@ export function ImageUpload({
           </AlertDescription>
         </Alert>
       )}
-
-      {/* Image Preview */}
+      
+    
       {value && showPreview && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Badge variant="default" className="text-xs bg-green-100 text-green-800">
-              Image uploaded successfully
-            </Badge>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowPreviewModal(true)} disabled={disabled}>
-                <Eye className="h-3 w-3 mr-1" />
-                Preview
-              </Button>
-              {allowDelete && (
-                <Button variant="outline" size="sm" onClick={handleDelete} disabled={disabled}>
-                  <Trash2 className="h-3 w-3 mr-1" />
-                  Delete
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div className="relative w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
-            <img
-              src={value || "/placeholder.svg"}
-              alt="Uploaded image"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement
-                target.src = "/placeholder.svg?height=128&width=200&text=Image+Error"
-              }}
-            />
-          </div>
-        </div>
+  <div className="space-y-2">
+    <div className="flex items-center justify-start space-x-4">
+      <div
+        className={cn(
+          "relative w-full max-h-32 bg-gray-50 border border-gray-200 rounded-lg overflow-hidden shadow-sm",
+          !disabled && "cursor-pointer"
+        )}
+        onClick={() => {
+          if (!disabled) {
+            setShowPreviewModal(true);
+          }
+        }}
+      >
+        <img
+          src={value || "/placeholder.svg"}
+          alt="Uploaded image"
+          className="w-full h-full object-contain"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = "/placeholder.svg?height=128&width=200&text=Image+Error";
+          }}
+        />
+      </div>
+      {allowDelete && (
+       
+       <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDelete}
+          disabled={disabled}
+          className="border-red-600 text-red-600 hover:bg-red-50" // Red border and text, hover effect
+        >
+          <Trash2 className="h-3 w-3 mr-1 text-red-600" /> {/* Red trash icon */}
+          Delete
+        </Button>
       )}
+    </div>
+  </div>
+)}
 
       {/* Preview Modal */}
       {showPreviewModal && value && (
