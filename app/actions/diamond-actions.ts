@@ -27,7 +27,7 @@ export async function createDiamondLot(lotData: NewDiamondLotData) {
       stonegroup: "diamond", // Always set to diamond
     }
 
-    const { error } = await supabase.from("diamond_lots").insert(supabaseData)
+    const { data, error } = await supabase.from("diamond_lots").insert(supabaseData).select('*').single()
 
     if (error) {
       const duration = performance.now() - startTime
@@ -53,7 +53,7 @@ export async function createDiamondLot(lotData: NewDiamondLotData) {
       duration,
     })
 
-    return { success: true }
+    return { success: true, data }
   } catch (error) {
     const duration = performance.now() - startTime
     logger.error(`Unexpected error in createDiamondLot`, {

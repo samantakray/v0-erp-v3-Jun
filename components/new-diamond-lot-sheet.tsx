@@ -42,9 +42,10 @@ import {
 interface NewDiamondLotSheetProps {
   isOpen: boolean
   onClose: () => void
+  onDiamondLotCreated: (newLot: DiamondLotData) => void
 }
 
-export function NewDiamondLotSheet({ isOpen, onClose }: NewDiamondLotSheetProps) {
+export function NewDiamondLotSheet({ isOpen, onClose, onDiamondLotCreated }: NewDiamondLotSheetProps) {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -96,6 +97,7 @@ export function NewDiamondLotSheet({ isOpen, onClose }: NewDiamondLotSheetProps)
         title: "Success",
         description: `Diamond lot ${formState.lot_number} has been created.`,
       })
+      onDiamondLotCreated(result.data)
       handleClose()
     } else {
       setError(result.error || "An unknown error occurred.")
