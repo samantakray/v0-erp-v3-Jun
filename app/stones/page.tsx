@@ -14,33 +14,38 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Edit, Trash2, Filter, XCircleIcon } from "lucide-react"
+import { NewStoneLotSheet } from "@/components/new-stone-lot-sheet"
 
 export default function StonesPage() {
   const [stoneLots, setStoneLots] = useState<StoneLotData[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)  
+  const [error, setError] = useState<string | null>(null)
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
+
   useEffect(() => {
     const loadStoneLots = async () => {
       try {
         setLoading(true)
         const data = await fetchAllStoneLots()
         setStoneLots(data)
-      } catch (err) { 
+      } catch (err) {
         setError("Failed to load stone lots. Please try again later.")
         console.error("Error fetching stone lots:", err)
       } finally {
         setLoading(false)
       }
     }
-    loadStoneLots()  }, [])  
-    
-    if (loading) {
+    loadStoneLots()
+  }, [])
+
+  if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     )
-  }  if (error) {
+  }
+  if (error) {
     return (
       <div className="bg-red-50 border-l-4 border-red-500 p-4 m-4">
         <div className="flex">
@@ -53,8 +58,10 @@ export default function StonesPage() {
         </div>
       </div>
     )
-  }  return (
+  }
+  return (
     <div className="flex flex-col">
+      <NewStoneLotSheet isOpen={isSheetOpen} onClose={() => setIsSheetOpen(false)} />
       <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-6">
         <h1 className="text-lg font-semibold">Stone Lots</h1>
       </header>
@@ -74,7 +81,7 @@ export default function StonesPage() {
               Filter
             </Button>
           </div>
-          <Button>
+          <Button onClick={() => setIsSheetOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add Stone Lot
           </Button>

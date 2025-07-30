@@ -159,7 +159,7 @@ export const STONE_TYPE = {
 
 // Stone type codes for reference (not stored in database)
 export const STONE_TYPE_CODES = {
-  [STONE_TYPE.NONE]: "",
+  [STONE_TYPE.NONE]: "None",
   [STONE_TYPE.AKOYA_PEARL]: "KW",
   [STONE_TYPE.AMAZONITE]: "AZ",
   [STONE_TYPE.AMETHYST]: "AM",
@@ -242,6 +242,38 @@ export const STONE_TYPE_CODES = {
 } as const
 
 export type StoneType = (typeof STONE_TYPE)[keyof typeof STONE_TYPE]
+
+// New constants for Stone Lot properties
+export const STONE_SHAPE = {
+  FC: "FC",
+  CB: "CB",
+  CR: "CR",
+} as const
+
+export type StoneShape = (typeof STONE_SHAPE)[keyof typeof STONE_SHAPE]
+
+export const STONE_CUT = {
+  CL: "CL",
+  OP: "OP",
+  TM: "TM",
+} as const
+
+export type StoneCut = (typeof STONE_CUT)[keyof typeof STONE_CUT]
+
+export const STONE_QUALITY = {
+  A: "A",
+  B: "B",
+} as const
+
+export type StoneQuality = (typeof STONE_QUALITY)[keyof typeof STONE_QUALITY]
+
+export const STONE_LOCATION = {
+  PRIMARY: "Primary",
+  NONE: "None",
+  OTHER: "Other",
+} as const
+
+export type StoneLocation = (typeof STONE_LOCATION)[keyof typeof STONE_LOCATION]
 
 // Map for category codes used in SKU ID generation
 export const CATEGORY_CODES: Record<SkuCategory, string> = {
