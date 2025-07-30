@@ -310,6 +310,18 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
 
   const handleCreateSkusBatch = async () => {
 
+    // Validate that every SKU has a gold type and an image
+    for (const sku of multipleSkus) {
+      if (!sku.goldType) {
+        setError("Cannot create SKUs: All SKUs must have a Gold Type selected.");
+        return;
+      }
+      if (!sku.imageFile) {
+        setError("Cannot create SKUs: All SKUs must have a photo uploaded.");
+        return;
+      }
+    }
+
 // Check if any SKU has a category of "None"
 const hasInvalidCategory = multipleSkus.some(sku => sku.category === "None");
 if (hasInvalidCategory) {
@@ -505,12 +517,21 @@ if (hasDuplicates) {
                         <TableRow>
                           <TableHead>No.</TableHead>
                           <TableHead>SKU ID</TableHead>
-                          <TableHead>Category</TableHead>
+                          <TableHead>
+                            Category
+                            <div className="text-red-500 text-xs font-normal">* required</div>
+                          </TableHead>
                           <TableHead>Size</TableHead>
-                          <TableHead>Gold Type</TableHead>
+                          <TableHead>
+                            Gold Type
+                            <div className="text-red-500 text-xs font-normal">* required</div>
+                          </TableHead>
                           
                           <TableHead>Collection</TableHead>
-                          <TableHead>Image</TableHead>
+                          <TableHead>
+                            Image
+                            <div className="text-red-500 text-xs font-normal">* required</div>
+                          </TableHead>
                           <TableHead></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -580,7 +601,8 @@ if (hasDuplicates) {
               multipleSkus.length === 0 ||
               nextSequentialNumber === null ||
               isLoading ||
-              Object.keys(uploadErrors).length > 0
+              Object.keys(uploadErrors).length > 0 ||
+              multipleSkus.some(sku => !sku.goldType || !sku.imageFile)
             }
             className="w-full"
           >
