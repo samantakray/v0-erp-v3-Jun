@@ -1,4 +1,3 @@
-import { getEnabledCategories } from "trace_events"
 
 export const SKU_CATEGORY = {
   NONE: "None",
