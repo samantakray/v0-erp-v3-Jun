@@ -38,7 +38,7 @@ export async function createDiamondLot(lotData: NewDiamondLotData) {
       })
 
       // Provide a user-friendly error for unique constraint violation
-      if (error.code === "23505") { // Unique violation error code
+      if (error.code === "23505") { // Unique violation error code for POSTGRES_UNIQUE_VIOLATION
         return { success: false, error: `A diamond lot with Lot Number "${lotData.lot_number}" already exists.` }
       }
 
