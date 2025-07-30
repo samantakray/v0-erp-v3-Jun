@@ -190,7 +190,7 @@ export default function JobListPage() {
     },
     {
       accessor: "id", // Using id as accessor for actions column
-      header: "Job Actions",
+      header: "Actions",
       render: (job) => (
         <div className="flex gap-2">
           <Link href={`/orders/${job.orders?.order_id || job.orderId}/jobs/${job.job_id || job.id}`}>

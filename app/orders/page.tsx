@@ -312,9 +312,9 @@ export default function OrdersPage() {
       ),
     },
     {
-      header: "Order Actions",
+      header: "Actions",
       accessor: "id",
-      className: "text-left",
+      className: "text-right",
       render: (row) => (
         <div className="flex justify-end gap-2">
           <Button

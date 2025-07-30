@@ -1,146 +1,197 @@
 // diamonds/page.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { fetchAllDiamondLots } from "@/lib/api-service"
 import type { DiamondLotData } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
- Table,
- TableBody,
- TableCell,
- TableHead,
- TableHeader,
- TableRow,
-} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Edit, Trash2, Filter, XCircleIcon } from "lucide-react"
+import { Plus, Search, Edit, Trash2, Filter, AlertCircle } from "lucide-react"
+import { NewDiamondLotSheet } from "@/components/new-diamond-lot-sheet"
+import { DataTable, type Column } from "@/app/components/DataTable"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function DiamondsPage() {
- const [diamondLots, setDiamondLots] = useState<DiamondLotData[]>([])
- const [loading, setLoading] = useState(true)
- const [error, setError] = useState<string | null>(null)
+  const [diamondLots, setDiamondLots] = useState<DiamondLotData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
- useEffect(() => {
- const loadDiamondLots = async () => {
- try {
- setLoading(true)
- const data = await fetchAllDiamondLots()
- setDiamondLots(data)
- } catch (err) {
- setError("Failed to load diamond lots. Please try again later.")
- console.error("Error fetching diamond lots:", err)
- } finally {
- setLoading(false)
- }
- }
- loadDiamondLots()
- }, [])
+  const loadDiamondLots = async () => {
+    try {
+      setLoading(true)
+      const data = await fetchAllDiamondLots()
+      const sortedData = [...data].sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0
+        return dateB - dateA
+      })
+      setDiamondLots(sortedData)
+    } catch (err) {
+      setError("Failed to load diamond lots. Please try again later.")
+      console.error("Error fetching diamond lots:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
- if (loading) {
- return (
- <div className="flex justify-center items-center h-64">
- <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
- </div>
- )
- }
+  useEffect(() => {
+    loadDiamondLots()
+  }, [])
 
- if (error) {
- return (
- <div className="bg-red-50 border-l-4 border-red-500 p-4 m-4">
- <div className="flex">
- <div className="flex-shrink-0">
- <XCircleIcon className="h-5 w-5 text-red-500" />
- </div>
- <div className="ml-3">
- <p className="text-sm text-red-700">{error}</p>
- </div>
- </div>
- </div>
- )
- }
+  const handleRefresh = () => {
+    loadDiamondLots()
+  }
 
- return (
- <div className="flex flex-col">
- <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-6">
- <h1 className="text-lg font-semibold">Diamond Lots</h1>
- </header>
- <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
- <div className="flex items-center justify-between">
- <div className="flex items-center gap-2">
- <div className="relative">
- <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
- <Input
- type="search"
- placeholder="Search diamond lots..."
- className="w-[300px] pl-8"
- />
- </div>
- <Button variant="outline">
- <Filter className="mr-2 h-4 w-4" />
- Filter
- </Button>
- </div>
- <Button>
- <Plus className="mr-2 h-4 w-4" />
- Add Diamond Lot
- </Button>
- </div>
- {diamondLots.length === 0 && !loading ? (
- <div className="text-center py-12">
- <p className="text-gray-500">No diamond lots found.</p>
- </div>
- ) : (
- <div className="rounded-md border">
- <Table>
- <TableHeader>
- <TableRow>
- <TableHead>Lot Number</TableHead>
- <TableHead>Stone Group</TableHead>
- <TableHead>Shape</TableHead>
- <TableHead>Size</TableHead>
- <TableHead>Quality</TableHead>
- <TableHead>Diamond Type</TableHead>
- <TableHead>Quantity</TableHead>
- <TableHead>Weight</TableHead>
- <TableHead>Price</TableHead>
- <TableHead>Status</TableHead>
- <TableHead className="text-right">Actions</TableHead>
- </TableRow>
- </TableHeader>
- <TableBody>
- {diamondLots.map((lot) => (
- <TableRow key={lot.id}>
- <TableCell className="font-medium">{lot.lot_number || 'N/A'}</TableCell>
- <TableCell>{lot.stonegroup || 'N/A'}</TableCell>
- <TableCell>{lot.shape || 'N/A'}</TableCell>
- <TableCell>{lot.size || 'N/A'}</TableCell>
- <TableCell>{lot.quality || 'N/A'}</TableCell>
- <TableCell>{lot.a_type || 'N/A'}</TableCell>
- <TableCell>{lot.quantity || '0'}</TableCell>
- <TableCell>{lot.weight || '0'}</TableCell>
- <TableCell>{lot.price ? `$${lot.price}` : 'N/A'}</TableCell>
- <TableCell>
- <Badge variant={lot.status === 'Available' ? 'default' : 'secondary'}>
- {lot.status || 'N/A'}
- </Badge>
- </TableCell>
- <TableCell className="text-right">
- <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
- <Edit className="h-4 w-4" />
- </Button>
- <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
- <Trash2 className="h-4 w-4" />
- </Button>
- </TableCell>
- </TableRow>
- ))}
- </TableBody>
- </Table>
- </div>
- )}
- </main>
- </div>
- )
+  const handleDiamondLotCreated = (newLot: DiamondLotData) => {
+    setDiamondLots((prevLots) => [newLot, ...prevLots])
+    if (currentPage !== 1) {
+      setCurrentPage(1)
+    }
+  }
+
+  const filteredDiamondLots = useMemo(() => {
+    return diamondLots.filter((lot) => {
+      if (!searchQuery) return true
+      const query = searchQuery.toLowerCase()
+      return (
+        lot.lot_number?.toLowerCase().includes(query) ||
+        lot.size?.toLowerCase().includes(query)
+      )
+    })
+  }, [diamondLots, searchQuery])
+
+  const totalPages = Math.max(1, Math.ceil(filteredDiamondLots.length / itemsPerPage))
+
+  const currentItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    return filteredDiamondLots.slice(startIndex, startIndex + itemsPerPage)
+  }, [filteredDiamondLots, currentPage, itemsPerPage])
+
+  const columns: Column<DiamondLotData>[] = [
+    {
+      header: "Lot #",
+      accessor: "lot_number",
+      render: (lot) => <span className="font-medium">{lot.lot_number || 'N/A'}</span>,
+    },
+    {
+      header: "Size",
+      accessor: "size",
+      render: (lot) => <span>{lot.size || 'N/A'}</span>,
+    },
+    {
+      header: "Shape",
+      accessor: "shape",
+      render: (lot) => <span>{lot.shape || 'N/A'}</span>,
+    },
+    {
+      header: "Quality",
+      accessor: "quality",
+      render: (lot) => <span>{lot.quality || 'N/A'}</span>,
+    },
+    {
+      header: "Type",
+      accessor: "a_type",
+      render: (lot) => <span>{lot.a_type || 'N/A'}</span>,
+    },
+    {
+      header: "Quantity",
+      accessor: "quantity",
+      render: (lot) => <span>{lot.quantity || '0'}</span>,
+    },
+    {
+      header: "Weight",
+      accessor: "weight",
+      render: (lot) => <span>{lot.weight || '0'}</span>,
+    },
+    {
+      header: "Price",
+      accessor: "price",
+      render: (lot) => <span>{lot.price ? `${lot.price}` : 'N/A'}</span>,
+    },
+    {
+      header: "Status",
+      accessor: "status",
+      render: (lot) => (
+        <Badge variant={lot.status === "Available" ? "default" : "secondary"}>
+          {lot.status || 'N/A'}
+        </Badge>
+      ),
+    },
+    {
+      header: "Actions",
+      accessor: "actions",
+      render: () => (
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" size="icon">
+            <Edit className="h-4 w-4" />
+            <span className="sr-only">Edit</span>
+          </Button>
+          <Button variant="ghost" size="icon">
+            <Trash2 className="h-4 w-4" />
+            <span className="sr-only">Delete</span>
+          </Button>
+        </div>
+      ),
+      className: "text-right",
+    },
+  ]
+
+  return (
+    <div className="flex flex-col">
+      <NewDiamondLotSheet
+        isOpen={isSheetOpen}
+        onClose={() => setIsSheetOpen(false)}
+        onDiamondLotCreated={handleDiamondLotCreated}
+      />
+      <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-6">
+        <h1 className="text-lg font-semibold">Diamond Lots</h1>
+      </header>
+      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search diamond lots..."
+                className="w-[300px] pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Button variant="outline">
+              <Filter className="mr-2 h-4 w-4" />
+              Filter
+            </Button>
+          </div>
+          <Button onClick={() => setIsSheetOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Diamond Lot
+          </Button>
+        </div>
+        <DataTable
+          columns={columns}
+          data={currentItems}
+          loading={loading}
+          error={error}
+          onRefresh={handleRefresh}
+          caption={`Showing ${currentItems.length} of ${filteredDiamondLots.length} Diamond Lots`}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      </main>
+    </div>
+  )
 }

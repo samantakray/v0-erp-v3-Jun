@@ -38,7 +38,8 @@ const SkuTableRow = React.memo(function SkuTableRow(props) {
     handleImageChange,
     handleImageError,
     uploadError, // Changed from uploadErrors to uploadError
-    groupedStoneTypes
+    groupedStoneTypes,
+    selectedCategoriesInBatch // <--- NEW PROP
   } = props;
   // --- Start of new debug code ---
   const prevProps = React.useRef();
@@ -77,14 +78,30 @@ const SkuTableRow = React.memo(function SkuTableRow(props) {
             className="w-[120px]"
             onFocus={() => console.log(`FOCUS on Category dropdown for index ${index}`)}
           >
-            <SelectValue placeholder="Category" />
+            <SelectValue>{sku.category === "None" ? "Category" : sku.category}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {Object.values(SKU_CATEGORY).map((category) => (
-              <SelectItem key={category} value={category}>
-                {category}
-              </SelectItem>
-            ))}
+            {Object.values(SKU_CATEGORY).map((category) => {
+              const isAlreadySelected = selectedCategoriesInBatch.has(category);
+              return (
+                <SelectItem
+                  key={category}
+                  value={category}
+                  className={isAlreadySelected ? "bg-green-100 text-green-800" : ""}
+                  disabled={isAlreadySelected && category !== sku.category}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span>{category}</span>
+                    {isAlreadySelected && (
+                      <span className="flex items-center text-xs text-green-600 ml-2">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        {category === sku.category ? "Selected" : "Already in set"}
+                      </span>
+                    )}
+                  </div>
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
       </TableCell>
@@ -175,6 +192,8 @@ const SkuTableRow = React.memo(function SkuTableRow(props) {
 });
 
 
+import { CheckCircle } from "lucide-react"
+
 export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   console.log("NewSKUSheet component rendered at", new Date().toLocaleTimeString());
   const [multipleSkus, setMultipleSkus] = useState([
@@ -197,6 +216,16 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   const skusCreatedRef = useRef(false)
   const [isPredictedNumber, setIsPredictedNumber] = useState(true)
   const [uploadErrors, setUploadErrors] = useState({})
+
+  const selectedCategoriesInBatch = React.useMemo(() => {
+      const categories = new Set<SKU_CATEGORY>();
+      multipleSkus.forEach(sku => {
+        if (sku.category && sku.category !== "None") {
+          categories.add(sku.category);
+        }
+      });
+      return categories;
+    }, [multipleSkus]);
 
   // Initialize the SKU in the set and fetch the predicted next number when the sheet is opened
   useEffect(() => {
@@ -309,6 +338,18 @@ export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   }, [formattedNumber]);
 
   const handleCreateSkusBatch = async () => {
+
+    // Validate that every SKU has a gold type and an image
+    for (const sku of multipleSkus) {
+      if (!sku.goldType) {
+        setError("Cannot create SKUs: All SKUs must have a Gold Type selected.");
+        return;
+      }
+      if (!sku.imageFile) {
+        setError("Cannot create SKUs: All SKUs must have a photo uploaded.");
+        return;
+      }
+    }
 
 // Check if any SKU has a category of "None"
 const hasInvalidCategory = multipleSkus.some(sku => sku.category === "None");
@@ -505,12 +546,21 @@ if (hasDuplicates) {
                         <TableRow>
                           <TableHead>No.</TableHead>
                           <TableHead>SKU ID</TableHead>
-                          <TableHead>Category</TableHead>
+                          <TableHead>
+                            Category
+                            <div className="text-red-500 text-xs font-normal">* required</div>
+                          </TableHead>
                           <TableHead>Size</TableHead>
-                          <TableHead>Gold Type</TableHead>
+                          <TableHead>
+                            Gold Type
+                            <div className="text-red-500 text-xs font-normal">* required</div>
+                          </TableHead>
                           
                           <TableHead>Collection</TableHead>
-                          <TableHead>Image</TableHead>
+                          <TableHead>
+                            Image
+                            <div className="text-red-500 text-xs font-normal">* required</div>
+                          </TableHead>
                           <TableHead></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -529,6 +579,7 @@ if (hasDuplicates) {
                             handleImageError={handleImageError}
                             uploadError={uploadErrors[index]} // Pass only the relevant error
                             groupedStoneTypes={groupedStoneTypes}
+                            selectedCategoriesInBatch={selectedCategoriesInBatch} // <--- NEW PROP
                           />
                         ))}
                       </TableBody>
@@ -580,7 +631,8 @@ if (hasDuplicates) {
               multipleSkus.length === 0 ||
               nextSequentialNumber === null ||
               isLoading ||
-              Object.keys(uploadErrors).length > 0
+              Object.keys(uploadErrors).length > 0 ||
+              multipleSkus.some(sku => !sku.goldType || !sku.imageFile)
             }
             className="w-full"
           >
