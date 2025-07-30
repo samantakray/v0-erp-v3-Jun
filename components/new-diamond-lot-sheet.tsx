@@ -30,7 +30,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { createDiamondLot } from "@/app/actions/diamond-actions"
-import type { NewDiamondLotData } from "@/types"
+import type { NewDiamondLotData, DiamondLotData } from "@/types"
 import { Loader2 } from "lucide-react"
 import {
   DIAMOND_SHAPE,
@@ -109,7 +109,8 @@ export function NewDiamondLotSheet({ isOpen, onClose, onDiamondLotCreated }: New
     }
   }
 
-  const isFormValid = formState.lot_number && formState.quantity && formState.weight && formState.price
+  //  form validation checks if fields are numeric fields containing valid numbers
+  const isFormValid = formState.lot_number && formState.quantity && !isNaN(Number(formState.quantity)) && formState.weight && !isNaN(Number(formState.weight)) && formState.price && !isNaN(Number(formState.price))
 
   return (
     <Sheet open={isOpen} onOpenChange={handleClose}>
@@ -233,6 +234,7 @@ export function NewDiamondLotSheet({ isOpen, onClose, onDiamondLotCreated }: New
                   <Input
                     id="weight"
                     type="number"
+                    step="0.01"
                     value={formState.weight}
                     onChange={handleInputChange}
                     className="w-[100px]"
@@ -242,6 +244,7 @@ export function NewDiamondLotSheet({ isOpen, onClose, onDiamondLotCreated }: New
                   <Input
                     id="price"
                     type="number"
+                    step="0.01"
                     value={formState.price}
                     onChange={handleInputChange}
                     className="w-[100px]"

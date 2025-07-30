@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { X, Loader2 } from "lucide-react"
+import { X, Loader2, CheckCircle } from "lucide-react"
 import {
   SKU_CATEGORY,
   COLLECTION_NAME,
@@ -192,7 +192,6 @@ const SkuTableRow = React.memo(function SkuTableRow(props) {
 });
 
 
-import { CheckCircle } from "lucide-react"
 
 export function NewSKUSheet({ open, onOpenChange, onSKUCreated = () => {} }) {
   console.log("NewSKUSheet component rendered at", new Date().toLocaleTimeString());

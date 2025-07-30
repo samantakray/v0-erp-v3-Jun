@@ -1,4 +1,3 @@
-import { getEnabledCategories } from "trace_events"
 
 export const SKU_CATEGORY = {
   NONE: "None",
@@ -16,7 +15,6 @@ export const SKU_CATEGORY = {
   TYRE: "Tyre",
   KADI: "Kadi",
   EARRING_PART: "Earring Part",
-  
 } as const
 
 export type SkuCategory = (typeof SKU_CATEGORY)[keyof typeof SKU_CATEGORY]

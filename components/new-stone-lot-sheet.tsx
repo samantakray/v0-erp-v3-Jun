@@ -30,7 +30,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { createStoneLot } from "@/app/actions/stone-actions"
-import type { NewStoneLotData } from "@/types"
+import type { NewStoneLotData, StoneLotData } from "@/types"
 import { Loader2 } from "lucide-react"
 import {
   STONE_TYPE,
@@ -44,7 +44,7 @@ import {
 interface NewStoneLotSheetProps {
   isOpen: boolean
   onClose: () => void
-  onStoneLotCreated: (newLot: NewStoneLotData) => void
+  onStoneLotCreated: (newLot: StoneLotData) => void
 }
 
 export function NewStoneLotSheet({ isOpen, onClose, onStoneLotCreated }: NewStoneLotSheetProps) {
@@ -244,6 +244,7 @@ export function NewStoneLotSheet({ isOpen, onClose, onStoneLotCreated }: NewSton
                   <Input
                     id="weight"
                     type="number"
+                    step="0.01"
                     value={formState.weight}
                     onChange={handleInputChange}
                     className="w-[100px]"

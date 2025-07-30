@@ -21,8 +21,14 @@ export async function createStoneLot(lotData: NewStoneLotData) {
     // Prepare data for Supabase, converting empty strings to null and parsing numbers
     const supabaseData = {
       ...lotData,
-      quantity: lotData.quantity ? parseInt(String(lotData.quantity), 10) : null,
-      weight: lotData.weight ? parseFloat(String(lotData.weight)) : null,
+      quantity: lotData.quantity ? (() => {
+        const parsed = parseInt(String(lotData.quantity), 10);
+        return isNaN(parsed) ? null : parsed;
+      })() : null,
+      weight: lotData.weight ? (() => {
+        const parsed = parseFloat(String(lotData.weight));
+        return isNaN(parsed) ? null : parsed;
+      })() : null,
       // Ensure optional fields are null if empty
       shape: lotData.shape || null,
       quality: lotData.quality || null,
@@ -42,7 +48,7 @@ export async function createStoneLot(lotData: NewStoneLotData) {
       })
 
       // Provide a user-friendly error for unique constraint violation
-      if (error.code === "23505") { // Unique violation error code
+      if (error.code === "23505") { // Unique violation error codefor POSTGRES_UNIQUE_VIOLATION
         return { success: false, error: `A stone lot with Lot Number "${lotData.lot_number}" already exists.` }
       }
 
