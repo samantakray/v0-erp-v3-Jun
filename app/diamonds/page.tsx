@@ -137,7 +137,7 @@ export default function DiamondsPage() {
           </Button>
         </div>
       ),
-      className: "text-left",
+      className: "text-right",
     },
   ]
 

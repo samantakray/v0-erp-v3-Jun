@@ -128,7 +128,7 @@ export default function StonesPage() {
           </Button>
         </div>
       ),
-      className: "text-left",
+      className: "text-right",
     },
   ]
 

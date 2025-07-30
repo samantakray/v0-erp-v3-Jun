@@ -291,11 +291,6 @@ export default function SKUsPage() {
       accessor: "goldType",
     },
     {
-      header: "Stone Type",
-      accessor: "stoneType",
-      render: (sku) => <span>{sku.stoneType === STONE_TYPE.NONE ? "-" : sku.stoneType}</span>,
-    },
-    {
       header: "Actions",
       accessor: "actions",
       render: (sku) => (
@@ -310,7 +305,7 @@ export default function SKUsPage() {
           </Button>
         </div>
       ),
-      className: "text-left",
+      className: "text-right",
     },
   ]
 
