@@ -44,9 +44,10 @@ import {
 interface NewStoneLotSheetProps {
   isOpen: boolean
   onClose: () => void
+  onStoneLotCreated: (newLot: NewStoneLotData) => void
 }
 
-export function NewStoneLotSheet({ isOpen, onClose }: NewStoneLotSheetProps) {
+export function NewStoneLotSheet({ isOpen, onClose, onStoneLotCreated }: NewStoneLotSheetProps) {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -98,6 +99,7 @@ export function NewStoneLotSheet({ isOpen, onClose }: NewStoneLotSheetProps) {
         title: "Success",
         description: `Stone lot ${formState.lot_number} has been created.`,
       })
+      onStoneLotCreated(result.data)
       handleClose()
     } else {
       setError(result.error || "An unknown error occurred.")
@@ -117,7 +119,7 @@ export function NewStoneLotSheet({ isOpen, onClose }: NewStoneLotSheetProps) {
         <SheetHeader>
           <SheetTitle>Add New Stone Lot</SheetTitle>
           <SheetDescription>
-            Enter the details for the new stone lot. Click create when you'''re done.
+            Enter the details for the new stone lot. Click create when you're done.
           </SheetDescription>
         </SheetHeader>
 

@@ -115,7 +115,7 @@ export function NewDiamondLotSheet({ isOpen, onClose }: NewDiamondLotSheetProps)
         <SheetHeader>
           <SheetTitle>Add New Diamond Lot</SheetTitle>
           <SheetDescription>
-            Enter the details for the new diamond lot. Click create when you'''re done.
+            Enter the details for the new diamond lot. Click create when you're done.
           </SheetDescription>
         </SheetHeader>
 

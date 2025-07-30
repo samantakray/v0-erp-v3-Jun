@@ -31,7 +31,7 @@ export async function createStoneLot(lotData: NewStoneLotData) {
       stone_size: lotData.stone_size || null,
     }
 
-    const { error } = await supabase.from("stone_lots").insert(supabaseData)
+    const { data, error } = await supabase.from("stone_lots").insert(supabaseData).select('*').single()
 
     if (error) {
       const duration = performance.now() - startTime
@@ -57,7 +57,7 @@ export async function createStoneLot(lotData: NewStoneLotData) {
       duration,
     })
 
-    return { success: true }
+    return { success: true, data }
   } catch (error) {
     const duration = performance.now() - startTime
     logger.error(`Unexpected error in createStoneLot`, {
