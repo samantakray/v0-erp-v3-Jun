@@ -275,6 +275,37 @@ export const STONE_LOCATION = {
 
 export type StoneLocation = (typeof STONE_LOCATION)[keyof typeof STONE_LOCATION]
 
+// New constants for Diamond Lot properties
+export const DIAMOND_SHAPE = {
+  RD: 'RD',
+  BG: 'BG',
+} as const
+
+export type DiamondShape = (typeof DIAMOND_SHAPE)[keyof typeof DIAMOND_SHAPE]
+
+export const DIAMOND_SIZE = {
+  PLUS_2: '+2',
+  PLUS_6: '+6',
+  MINUS_2: '-2',
+  NONE: 'none',
+} as const
+
+export type DiamondSize = (typeof DIAMOND_SIZE)[keyof typeof DIAMOND_SIZE]
+
+export const DIAMOND_QUALITY = {
+  HI_SI: 'HI/SI',
+  UNKNOWN: 'unknown',
+} as const
+
+export type DiamondQuality = (typeof DIAMOND_QUALITY)[keyof typeof DIAMOND_QUALITY]
+
+export const DIAMOND_TYPE = {
+  ACTUAL: 'Actual',
+  UNKNOWN: 'unknown',
+} as const
+
+export type DiamondType = (typeof DIAMOND_TYPE)[keyof typeof DIAMOND_TYPE]
+
 // Map for category codes used in SKU ID generation
 export const CATEGORY_CODES: Record<SkuCategory, string> = {
   [SKU_CATEGORY.NECKLACE]: "NK",

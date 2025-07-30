@@ -29,48 +29,46 @@ import {
 } from "@/components/ui/table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
-import { createStoneLot } from "@/app/actions/stone-actions"
-import type { NewStoneLotData } from "@/types"
+import { createDiamondLot } from "@/app/actions/diamond-actions"
+import type { NewDiamondLotData } from "@/types"
 import { Loader2 } from "lucide-react"
 import {
-  STONE_TYPE,
-  STONE_TYPE_CODES,
-  STONE_SHAPE,
-  STONE_CUT,
-  STONE_QUALITY,
-  STONE_LOCATION,
+  DIAMOND_SHAPE,
+  DIAMOND_SIZE,
+  DIAMOND_QUALITY,
+  DIAMOND_TYPE,
 } from "@/constants/categories"
 
-interface NewStoneLotSheetProps {
+interface NewDiamondLotSheetProps {
   isOpen: boolean
   onClose: () => void
 }
 
-export function NewStoneLotSheet({ isOpen, onClose }: NewStoneLotSheetProps) {
+export function NewDiamondLotSheet({ isOpen, onClose }: NewDiamondLotSheetProps) {
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const getInitialState = () => ({
     lot_number: "",
-    stone_type: STONE_TYPE_CODES[STONE_TYPE.NONE], // Set default to 'None' code
-    shape: STONE_SHAPE.FC,
-    stone_size: "",
-    quality: STONE_QUALITY.A,
-    type: STONE_CUT.CL,
+    shape: DIAMOND_SHAPE.RD,
+    size: DIAMOND_SIZE.NONE,
+    quality: DIAMOND_QUALITY.UNKNOWN,
+    a_type: DIAMOND_TYPE.ACTUAL,
     quantity: "",
     weight: "",
-    location: STONE_LOCATION.PRIMARY,
+    price: "",
+    stonegroup: "diamond",
   })
 
-  const [formState, setFormState] = useState<NewStoneLotData>(getInitialState())
+  const [formState, setFormState] = useState<NewDiamondLotData>(getInitialState())
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target
     setFormState((prevState) => ({ ...prevState, [id]: value }))
   }
 
-  const handleSelectChange = (field: keyof NewStoneLotData, value: string) => {
+  const handleSelectChange = (field: keyof NewDiamondLotData, value: string) => {
     setFormState((prevState) => ({ ...prevState, [field]: value }))
   }
 
@@ -89,14 +87,14 @@ export function NewStoneLotSheet({ isOpen, onClose }: NewStoneLotSheetProps) {
     setIsLoading(true)
     setError(null)
 
-    const result = await createStoneLot(formState)
+    const result = await createDiamondLot(formState)
 
     setIsLoading(false)
 
     if (result.success) {
       toast({
         title: "Success",
-        description: `Stone lot ${formState.lot_number} has been created.`,
+        description: `Diamond lot ${formState.lot_number} has been created.`,
       })
       handleClose()
     } else {
@@ -104,20 +102,20 @@ export function NewStoneLotSheet({ isOpen, onClose }: NewStoneLotSheetProps) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: result.error || "Failed to create stone lot.",
+        description: result.error || "Failed to create diamond lot.",
       })
     }
   }
 
-  const isFormValid = formState.lot_number && formState.stone_type && formState.stone_type !== STONE_TYPE_CODES[STONE_TYPE.NONE]
+  const isFormValid = formState.lot_number && formState.quantity && formState.weight && formState.price
 
   return (
     <Sheet open={isOpen} onOpenChange={handleClose}>
       <SheetContent className="w-full sm:max-w-xl md:w-[calc(100vw-240px)] overflow-y-auto force-full-width-sheet">
         <SheetHeader>
-          <SheetTitle>Add New Stone Lot</SheetTitle>
+          <SheetTitle>Add New Diamond Lot</SheetTitle>
           <SheetDescription>
-            Enter the details for the new stone lot. Click create when you'''re done.
+            Enter the details for the new diamond lot. Click create when you'''re done.
           </SheetDescription>
         </SheetHeader>
 
@@ -133,14 +131,13 @@ export function NewStoneLotSheet({ isOpen, onClose }: NewStoneLotSheetProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Lot Number</TableHead>
-                <TableHead>Stone Type</TableHead>
                 <TableHead>Shape</TableHead>
                 <TableHead>Size</TableHead>
                 <TableHead>Quality</TableHead>
-                <TableHead>Stone Cut</TableHead>
+                <TableHead>Diamond Type</TableHead>
                 <TableHead>Quantity</TableHead>
                 <TableHead>Weight</TableHead>
-                <TableHead>Location</TableHead>
+                <TableHead>Price</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -155,23 +152,6 @@ export function NewStoneLotSheet({ isOpen, onClose }: NewStoneLotSheetProps) {
                 </TableCell>
                 <TableCell>
                   <Select
-                    value={formState.stone_type}
-                    onValueChange={(value) => handleSelectChange("stone_type", value)}
-                  >
-                    <SelectTrigger className="w-[150px]">
-                      <SelectValue placeholder="Select a stone type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(STONE_TYPE).map(([key, name]) => (
-                        <SelectItem key={key} value={STONE_TYPE_CODES[name]}>
-                          {name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Select
                     value={formState.shape}
                     onValueChange={(value) => handleSelectChange("shape", value)}
                   >
@@ -179,7 +159,7 @@ export function NewStoneLotSheet({ isOpen, onClose }: NewStoneLotSheetProps) {
                       <SelectValue placeholder="Select a shape" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.values(STONE_SHAPE).map((shape) => (
+                      {Object.values(DIAMOND_SHAPE).map((shape) => (
                         <SelectItem key={shape} value={shape}>
                           {shape}
                         </SelectItem>
@@ -188,23 +168,32 @@ export function NewStoneLotSheet({ isOpen, onClose }: NewStoneLotSheetProps) {
                   </Select>
                 </TableCell>
                 <TableCell>
-                  <Input
-                    id="stone_size"
-                    value={formState.stone_size}
-                    onChange={handleInputChange}
-                    className="w-[100px]"
-                  />
+                  <Select
+                    value={formState.size}
+                    onValueChange={(value) => handleSelectChange("size", value)}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue placeholder="Select a size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.values(DIAMOND_SIZE).map((size) => (
+                        <SelectItem key={size} value={size}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </TableCell>
                 <TableCell>
                   <Select
                     value={formState.quality}
                     onValueChange={(value) => handleSelectChange("quality", value)}
                   >
-                    <SelectTrigger className="w-[100px]">
+                    <SelectTrigger className="w-[120px]">
                       <SelectValue placeholder="Select a quality" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.values(STONE_QUALITY).map((quality) => (
+                      {Object.values(DIAMOND_QUALITY).map((quality) => (
                         <SelectItem key={quality} value={quality}>
                           {quality}
                         </SelectItem>
@@ -214,16 +203,16 @@ export function NewStoneLotSheet({ isOpen, onClose }: NewStoneLotSheetProps) {
                 </TableCell>
                 <TableCell>
                   <Select
-                    value={formState.type}
-                    onValueChange={(value) => handleSelectChange("type", value)}
+                    value={formState.a_type}
+                    onValueChange={(value) => handleSelectChange("a_type", value)}
                   >
-                    <SelectTrigger className="w-[100px]">
-                      <SelectValue placeholder="Select a cut" />
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue placeholder="Select a type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.values(STONE_CUT).map((cut) => (
-                        <SelectItem key={cut} value={cut}>
-                          {cut}
+                      {Object.values(DIAMOND_TYPE).map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -248,21 +237,13 @@ export function NewStoneLotSheet({ isOpen, onClose }: NewStoneLotSheetProps) {
                   />
                 </TableCell>
                 <TableCell>
-                  <Select
-                    value={formState.location}
-                    onValueChange={(value) => handleSelectChange("location", value)}
-                  >
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue placeholder="Select a location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.values(STONE_LOCATION).map((location) => (
-                        <SelectItem key={location} value={location}>
-                          {location}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    id="price"
+                    type="number"
+                    value={formState.price}
+                    onChange={handleInputChange}
+                    className="w-[100px]"
+                  />
                 </TableCell>
               </TableRow>
             </TableBody>
@@ -282,7 +263,7 @@ export function NewStoneLotSheet({ isOpen, onClose }: NewStoneLotSheetProps) {
                 Creating...
               </>
             ) : (
-              "Create Stone Lot"
+              "Create Diamond Lot"
             )}
           </Button>
         </SheetFooter>

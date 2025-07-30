@@ -16,11 +16,13 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Edit, Trash2, Filter, XCircleIcon } from "lucide-react"
+import { NewDiamondLotSheet } from "@/components/new-diamond-lot-sheet"
 
 export default function DiamondsPage() {
  const [diamondLots, setDiamondLots] = useState<DiamondLotData[]>([])
  const [loading, setLoading] = useState(true)
  const [error, setError] = useState<string | null>(null)
+ const [isSheetOpen, setIsSheetOpen] = useState(false)
 
  useEffect(() => {
  const loadDiamondLots = async () => {
@@ -63,6 +65,7 @@ export default function DiamondsPage() {
 
  return (
  <div className="flex flex-col">
+ <NewDiamondLotSheet isOpen={isSheetOpen} onClose={() => setIsSheetOpen(false)} />
  <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-6">
  <h1 className="text-lg font-semibold">Diamond Lots</h1>
  </header>
@@ -82,7 +85,7 @@ export default function DiamondsPage() {
  Filter
  </Button>
  </div>
- <Button>
+ <Button onClick={() => setIsSheetOpen(true)}>
  <Plus className="mr-2 h-4 w-4" />
  Add Diamond Lot
  </Button>
